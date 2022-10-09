@@ -3,9 +3,10 @@
 
 #define TENTH_MM_PER_PIP 40
 #define TIMEOUT_PER_PIP
-#define TICKS_PER_TENTH_MM 11.3
+#define TICKS_PER_TENTH_MM 10.4
 
-#define TENSION_TIMEOUT         400
+#define TENSION_TIMEOUT 400
+#define TENSION_DELAY 800
 
 //pid settings and gains
 #define OUTPUT_MIN 0
@@ -94,13 +95,13 @@ bool IndexFeeder::moveInternal(uint32_t timeout, bool forward, uint8_t tenths_mm
         }
         else { //if not at setpoint yet
             if(output > 0){
-                analogWrite(_drive1_pin, 0);
-                analogWrite(_drive2_pin, output*2);
+                analogWrite(_drive1_pin, output*2);
+                analogWrite(_drive2_pin, 0);
             }
             else {
                 output = abs(output);
-                analogWrite(_drive1_pin, output*2);
-                analogWrite(_drive2_pin, 0);
+                analogWrite(_drive1_pin, 0);
+                analogWrite(_drive2_pin, output*2);
             }
         }
 
@@ -119,9 +120,9 @@ bool IndexFeeder::tension(uint32_t timeout) {
 
     //tension film
     digitalWrite(PA8, LOW);
-    analogWrite(_peel1_pin, 255);
-    analogWrite(_peel2_pin, 0);
-    delay(500);
+    analogWrite(_peel1_pin, 0);
+    analogWrite(_peel2_pin, 200);
+    delay(TENSION_DELAY);
     analogWrite(_peel1_pin, 0);
     analogWrite(_peel2_pin, 0);
     digitalWrite(PA8, HIGH);

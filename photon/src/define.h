@@ -9,8 +9,8 @@
 #define LED6 PA1
 #define LED7 PA0
 
-#define SW1 PB0
-#define SW2 PB1
+#define SW1 PB1
+#define SW2 PB0
 
 #define DRIVE1   PB4
 #define DRIVE2   PB5

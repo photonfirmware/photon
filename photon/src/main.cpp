@@ -47,7 +47,6 @@ HardwareSerial ser(PA10, PA9);
 
 // EEPROM
 OneWire oneWire(ONE_WIRE);
-DS2431 eeprom(oneWire);
 
 // Encoder
 RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
@@ -81,16 +80,23 @@ void byte_to_light(byte num){
 }
 
 byte read_floor_addr(){
-  if(!oneWire.reset())
-  {
-    //No DS2431 found on the 1-Wire bus
-    return 0xFF;
-  }
-  else{
-    byte data[128];
-    eeprom.read(0, data, sizeof(data));
-    return data[0];
-  }
+  
+  oneWire.reset();
+  oneWire.skip();
+  oneWire.write(0x99,1);
+  oneWire.read();
+  oneWire.reset();
+  
+  // if(!oneWire.reset())
+  // {
+  //   //No DS2431 found on the 1-Wire bus
+  //   return 0xFF;
+  // }
+  // else{
+  //   byte data[128];
+  //   oneWire.search(0x00);
+  //   return data[0];
+  // }
 }
 
 byte write_floor_addr(){
@@ -246,8 +252,8 @@ void loop() {
       }
       else{
         //we've got a long press, lets go speedy
-        analogWrite(DRIVE1, 255);
-        analogWrite(DRIVE2, 0);
+        analogWrite(DRIVE1, 0);
+        analogWrite(DRIVE2, 255);
         
         while(!digitalRead(SW1)){
           //do nothing
@@ -276,8 +282,8 @@ void loop() {
       }
       else{
         //we've got a long press, lets go speedy
-        analogWrite(DRIVE1, 0);
-        analogWrite(DRIVE2, 255);
+        analogWrite(DRIVE1, 255);
+        analogWrite(DRIVE2, 0);
         
         while(!digitalRead(SW2)){
           //do nothing
