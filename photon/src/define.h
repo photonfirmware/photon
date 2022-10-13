@@ -29,9 +29,7 @@
 //-----------------------
 //#define OPTO_SIG QRE1113
 
-
-
-#define LONG_PRESS_DELAY 300
+#define LONG_PRESS_DELAY 500
 
 //#define DEBUG
 //#define OPTO_DEBUG

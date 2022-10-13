@@ -77,6 +77,8 @@ void byte_to_light(byte num){
   digitalWrite(LED3, !bitRead(num, 2));
   digitalWrite(LED4, !bitRead(num, 3));
   digitalWrite(LED5, !bitRead(num, 4));
+  digitalWrite(LED6, !bitRead(num, 4));
+  digitalWrite(LED7, !bitRead(num, 4));
 }
 
 byte read_floor_addr(){
@@ -115,6 +117,7 @@ byte write_floor_addr(){
   ALL_LEDS_ON();
 
   while(true){
+    break;
     //we stay in here as long as both buttons aren't pressed
     if(!digitalRead(SW1) && current_selection < 31){
       delay(LONG_PRESS_DELAY);
@@ -142,34 +145,34 @@ byte write_floor_addr(){
 
   byte_to_light(0x00);
 
-  newData[0] = current_selection;
-  word address = 0;
-  if (eeprom.write(address, newData, sizeof(newData))){
-    addr = current_selection;
+  // newData[0] = current_selection;
+  // word address = 0;
+  // if (eeprom.write(address, newData, sizeof(newData))){
+  //   addr = current_selection;
 
-    while(!digitalRead(SW1) || !digitalRead(SW2)){
-      //do nothing
-    }
+  //   while(!digitalRead(SW1) || !digitalRead(SW2)){
+  //     //do nothing
+  //   }
 
-    // If the network is configured, update the local address
-    // to the newly selected address.
-    if (network != NULL) {
-      network->setLocalAddress(addr);
-    }
+  //   // If the network is configured, update the local address
+  //   // to the newly selected address.
+  //   if (network != NULL) {
+  //     network->setLocalAddress(addr);
+  //   }
 
-    for (int i = 0; i < 32; i++){
-      byte_to_light(i);
-      delay(40);
-    }
+  //   for (int i = 0; i < 32; i++){
+  //     byte_to_light(i);
+  //     delay(40);
+  //   }
 
-    byte_to_light(0x00);
+  //   byte_to_light(0x00);
 
-    return newData[0];
-  }
-  else
-  {
-    return 0x00;
-  }
+  //   return newData[0];
+  // }
+  // else
+  // {
+  //   return 0x00;
+  // }
 }
 
 //-------
@@ -191,6 +194,8 @@ void setup() {
   pinMode(LED3, OUTPUT);
   pinMode(LED4, OUTPUT);
   pinMode(LED5, OUTPUT);
+  pinMode(LED6, OUTPUT);
+  pinMode(LED7, OUTPUT);
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
   
@@ -208,17 +213,17 @@ void setup() {
   digitalWrite(_RE, HIGH);
 
   // Reading Feeder Floor Address
-  byte floor_addr = read_floor_addr();
+  // byte floor_addr = read_floor_addr();
 
-  if(floor_addr == 0x00){ //floor 1 wire eeprom has not been programmed
-    //somehow prompt to program eeprom
-  }
-  else if(floor_addr == 0xFF){
-    //no eeprom chip detected
-  }
-  else{ //successfully read address from eeprom
-    addr = floor_addr;
-  }  
+  // if(floor_addr == 0x00){ //floor 1 wire eeprom has not been programmed
+  //   //somehow prompt to program eeprom
+  // }
+  // else if(floor_addr == 0xFF){
+  //   //no eeprom chip detected
+  // }
+  // else{ //successfully read address from eeprom
+  //   addr = floor_addr;
+  // }  
 
   //Starting rs-485 serial
   ser.begin(BAUD_RATE);
@@ -240,7 +245,18 @@ void setup() {
 // cppcheck-suppress unusedFunction
 void loop() {
 
-  // Checking SW1 status to go forward, or initiate settings mode
+  // while(true){
+  //   int pos = encoder.getPosition();
+  //   if (pos > 100){
+  //     digitalWrite(LED1, LOW);
+  //   }
+  //   else if (pos < -100){
+  //     digitalWrite(LED2, LOW);
+  //   }
+    
+  // }
+
+  // Checking SW1 status to go backward, or initiate settings mode
   if(!digitalRead(SW1)){
     delay(LONG_PRESS_DELAY);
 
@@ -252,8 +268,8 @@ void loop() {
       }
       else{
         //we've got a long press, lets go speedy
-        analogWrite(DRIVE1, 0);
-        analogWrite(DRIVE2, 255);
+        analogWrite(DRIVE1, 255);
+        analogWrite(DRIVE2, 0);
         
         while(!digitalRead(SW1)){
           //do nothing
@@ -265,12 +281,12 @@ void loop() {
       
     }
     else{
-      feeder->feedDistance(40, true);
+      feeder->feedDistance(40, false);
       
     }
   }
 
-  // Checking SW2 status to go backward
+  // Checking SW2 status to go forward
   if(!digitalRead(SW2)){
     delay(LONG_PRESS_DELAY);
 
@@ -282,8 +298,8 @@ void loop() {
       }
       else{
         //we've got a long press, lets go speedy
-        analogWrite(DRIVE1, 255);
-        analogWrite(DRIVE2, 0);
+        analogWrite(DRIVE1, 0);
+        analogWrite(DRIVE2, 255);
         
         while(!digitalRead(SW2)){
           //do nothing
@@ -295,7 +311,7 @@ void loop() {
       
     }
     else{
-      feeder->feedDistance(40, false);
+      feeder->feedDistance(1280, true);
     }  
   }
 

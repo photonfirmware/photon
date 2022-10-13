@@ -16,7 +16,7 @@ class Feeder {
         };
 
         virtual bool init() = 0;
-        virtual FeedResult feedDistance(uint8_t tenths_mm, bool forward) = 0;
+        virtual FeedResult feedDistance(uint16_t tenths_mm, bool forward) = 0;
 
 };
 
