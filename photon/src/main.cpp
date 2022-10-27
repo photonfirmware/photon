@@ -1,12 +1,6 @@
 /*
-INDEX PNP
-Stephen Hawes 2021
-
-This firmware is intended to run on the Index PNP feeder main board. 
-It is meant to index component tape forward, while also intelligently peeling the film covering from said tape.
-When the feeder receives a signal from the host, it indexes a certain number of 'ticks' or 4mm spacings on the tape
-(also the distance between holes in the tape)
-
+Photon Feeder Firmware
+Stephen Hawes 2022
 */
 #include "define.h"
 
@@ -16,7 +10,6 @@ When the feeder receives a signal from the host, it indexes a certain number of 
   #include <Arduino.h>
   #include <HardwareSerial.h>
   #include <OneWire.h>
-  #include <DS2431.h>
   #include <ArduinoUniqueID.h>
 #endif // UNIT_TEST
 
@@ -24,7 +17,6 @@ When the feeder receives a signal from the host, it indexes a certain number of 
 #define MOTOR_DEPS
 
 #include <RotaryEncoder.h>
-//#include <PID_v1.h>
 
 #endif 
 
@@ -37,7 +29,7 @@ When the feeder receives a signal from the host, it indexes a certain number of 
 //
 //global variables
 //
-byte addr = 0;
+byte addr = 0x00;
 
 #ifdef UNIT_TEST
 StreamFake ser();
@@ -77,54 +69,201 @@ void byte_to_light(byte num){
   digitalWrite(LED3, !bitRead(num, 2));
   digitalWrite(LED4, !bitRead(num, 3));
   digitalWrite(LED5, !bitRead(num, 4));
-  digitalWrite(LED6, !bitRead(num, 4));
-  digitalWrite(LED7, !bitRead(num, 4));
+  digitalWrite(LED6, !bitRead(num, 5));
+  digitalWrite(LED7, !bitRead(num, 6));
 }
 
-byte read_floor_addr(){
+byte read_floor_address(){
+  byte i;                         // This is for the for loops
+  byte data[32]; 
   
-  oneWire.reset();
-  oneWire.skip();
-  oneWire.write(0x99,1);
-  oneWire.read();
-  oneWire.reset();
-  
-  // if(!oneWire.reset())
-  // {
-  //   //No DS2431 found on the 1-Wire bus
-  //   return 0xFF;
-  // }
-  // else{
-  //   byte data[128];
-  //   oneWire.search(0x00);
-  //   return data[0];
-  // }
+  // reset the 1-wire line, and return false if no chip detected
+  if(!oneWire.reset()){
+    return 0xFF;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  oneWire.skip(); 
+
+  // array with the commands to initiate a read, DS28E07 device expect 3 bytes to start a read: command,LSB&MSB adresses
+  byte leemem[3] = {
+    0xF0, 
+    0x00,
+    0x00
+  }; 
+
+  // sending those three bytes
+  oneWire.write(leemem[0],1);
+  oneWire.write(leemem[1],1);
+  oneWire.write(leemem[2],1);
+
+  for ( i = 0; i < 32; i++) {    // Now it's time to read the PROM data itself, each page is 32 bytes so we need 32 read commands
+    data[i] = oneWire.read();    // we store each read byte to a different position in the data array
+  }
+
+  addr = data[0];
+
+  // return the first byte from returned data
+  return data[0];
 }
 
-byte write_floor_addr(){
-  //programs a feeder floor. 
-  //successful programming returns the address programmed
-  //failed program returns 0x00
+/*
+    write_floor_address()
+      success returns programmed address byte
+      failure returns 0xFF
 
-  byte newData[] = {0,0,0,0,0,0,0,0};
+This function takes a byte as in input, and flashes it to address 0x0000 in the eeprom (where the floor ID is stored).
+The DS28E07 requires a million and one steps to make this happen. Reference the datasheet for details:
+https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
+*/
+byte write_floor_address(byte address){
 
+  byte i;                         // This is for the for loops
+  //-----
+  // Write To Scratchpad
+  //-----
+
+  byte data[8] = {address, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  
+  // reset the 1-wire line, and return false if no chip detected
+  if(!oneWire.reset()){
+    return 0x80;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  oneWire.skip(); 
+
+  // array with the commands to initiate a write to the scratchpad, DS28E07 device expect 3 bytes to start a read: command,LSB&MSB adresses
+  byte leemem[3] = {
+    0x0F, 
+    0x00,
+    0x00
+  }; 
+
+  // sending those three bytes
+  oneWire.write(leemem[0], 1);
+  oneWire.write(leemem[1], 1);
+  oneWire.write(leemem[2], 1);
+
+  // Now it's time to actually write the data to the scratchpad
+  for ( i = 0; i < 8; i++) {    
+    oneWire.write(data[i], 1);
+  }
+
+  // read back the CRC
+  byte ccrc = oneWire.read();
+
+  //-----
+  // Read Scratchpad
+  //-----
+
+  // array for the data we'll read back
+  byte read_data[11];
+
+  // byte for the ccrc the eeprom will send us
+  byte scratchpad_ccrc;
+
+  // reset the 1-wire line, and return failure if no chip detected
+  if(!oneWire.reset()){
+    return 0x80;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  oneWire.skip(); 
+
+  // send read scratchpad command
+  oneWire.write(0xAA, 1);
+
+  //read in TA1, TA2, and E/S bytes, then the 8 bytes of data
+  for ( i = 0; i < 11; i++) {    
+    read_data[i] = oneWire.read(); 
+  }
+
+  //read crc
+  scratchpad_ccrc = oneWire.read();
+
+  byte ccrc_calc = OneWire::crc8(read_data, 11);
+
+  // TODO need to be checking CCRC. never returns true, even when data is identical.
+  // if(scratchpad_ccrc != ccrc_calc){
+  //   // do nothing
+  // }
+
+  //-----
+  // Copy Scratchpad to Memory
+  //-----
+
+  // reset the 1-wire line, and return false if no chip detected
+  if(!oneWire.reset()){
+    return 0x80;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  oneWire.skip(); 
+
+  // copy scratchpad command
+  oneWire.write(0x55, 1);
+
+  // sending auth bytes from scratchpad read
+  oneWire.write(read_data[0],1);
+  oneWire.write(read_data[1],1);
+  oneWire.write(read_data[2],1);
+
+  // wait for programming, we'll get alternating 1s and 0s when done
+  // TODO add timeout
+  float timer = millis();
+  while(true){
+    if(oneWire.read() == 0xAA){
+      break;
+    }
+    if( (millis() - timer) > 20 ){ // datasheet says it should only ever take 12ms at most to program
+      break;
+    }
+  }
+
+  // send reset
+  if(!oneWire.reset()){
+    return 0x80;
+  }
+
+  // check the floor address by reading
+  byte written_address = read_floor_address();
+
+  if(written_address == address){
+    // set global address varaible to new address
+    addr = address;
+
+    //return new address
+    return address;
+  }
+
+  return 0x80;
+
+}
+
+bool select_floor_address(){
+
+  // put current address into a variable we'll manipulate
   byte current_selection = addr;
 
-  ALL_LEDS_OFF();
+  // turn off LEDs so we're starting with a blank slate
+  ALL_LEDS_ON();
+
+  // wait until both buttons have been released
   while(!digitalRead(SW1) || !digitalRead(SW2)){
     //do nothing
   }
-  ALL_LEDS_ON();
+
+  ALL_LEDS_OFF();
 
   while(true){
-    break;
     //we stay in here as long as both buttons aren't pressed
     if(!digitalRead(SW1) && current_selection < 31){
       delay(LONG_PRESS_DELAY);
       if(!digitalRead(SW1) && !digitalRead(SW2)){
         break;
       }
-      current_selection = current_selection + 1;
+      current_selection = current_selection - 1;
       while(!digitalRead(SW1)){
         //do nothing
       }
@@ -134,45 +273,43 @@ byte write_floor_addr(){
       if(!digitalRead(SW1) && !digitalRead(SW2)){
         break;
       }
-      current_selection = current_selection - 1;
+      current_selection = current_selection + 1;
       while(!digitalRead(SW2)){
         //do nothing
       }
     }
-
     byte_to_light(current_selection);
   }
 
   byte_to_light(0x00);
 
-  // newData[0] = current_selection;
-  // word address = 0;
-  // if (eeprom.write(address, newData, sizeof(newData))){
-  //   addr = current_selection;
+  byte written_address = write_floor_address(current_selection);
 
-  //   while(!digitalRead(SW1) || !digitalRead(SW2)){
-  //     //do nothing
-  //   }
+  // if failed to write
+  if(written_address == 0x80){
+    return false;
+  }
 
-  //   // If the network is configured, update the local address
-  //   // to the newly selected address.
-  //   if (network != NULL) {
-  //     network->setLocalAddress(addr);
-  //   }
+  // wait for the buttons to come up
+  while(!digitalRead(SW1) || !digitalRead(SW2)){
+    //do nothing
+  }
 
-  //   for (int i = 0; i < 32; i++){
-  //     byte_to_light(i);
-  //     delay(40);
-  //   }
+  // If the network is configured, update the local address
+  // to the newly selected address.
+  if (network != NULL) {
+    network->setLocalAddress(addr);
+  }
 
-  //   byte_to_light(0x00);
+  for (int i = 0; i < 16; i++){
+    byte_to_light(i);
+    delay(30);
+  }
 
-  //   return newData[0];
-  // }
-  // else
-  // {
-  //   return 0x00;
-  // }
+  byte_to_light(addr);
+
+  return true;
+
 }
 
 //-------
@@ -180,10 +317,6 @@ byte write_floor_addr(){
 //-------
 
 void setup() {
-
-  #ifdef DEBUG
-    Serial.println("INFO - Feeder starting up...");
-  #endif
 
   //setting pin modes
   pinMode(DE, OUTPUT);
@@ -201,29 +334,41 @@ void setup() {
   
   //init led blink
   ALL_LEDS_ON();
-  delay(100);
+  delay(50);
   ALL_LEDS_OFF();
-  delay(100);
+  delay(50);
   ALL_LEDS_ON();
-  delay(100);
+  delay(50);
   ALL_LEDS_OFF();
+  delay(50);
 
   //setting initial pin states
   digitalWrite(DE, HIGH);
   digitalWrite(_RE, HIGH);
 
-  // Reading Feeder Floor Address
-  // byte floor_addr = read_floor_addr();
+  // put current floor address on the leds
+  byte_to_light(read_floor_address());
 
-  // if(floor_addr == 0x00){ //floor 1 wire eeprom has not been programmed
-  //   //somehow prompt to program eeprom
-  // }
-  // else if(floor_addr == 0xFF){
-  //   //no eeprom chip detected
-  // }
-  // else{ //successfully read address from eeprom
-  //   addr = floor_addr;
-  // }  
+  if(addr == 0x00){ //floor 1 wire eeprom has not been programmed
+    //somehow prompt to program eeprom
+    while(true){
+      byte_to_light(0x02);
+      delay(100);
+      ALL_LEDS_OFF();
+      delay(100);
+    }
+
+  }
+  else if(addr == 0xFF){
+    //no eeprom chip detected
+    // blink annoyingly until it's solved
+    while(true){
+      byte_to_light(0x01);
+      delay(100);
+      ALL_LEDS_OFF();
+      delay(100);
+    }
+  }  
 
   //Starting rs-485 serial
   ser.begin(BAUD_RATE);
@@ -253,7 +398,6 @@ void loop() {
   //   else if (pos < -100){
   //     digitalWrite(LED2, LOW);
   //   }
-    
   // }
 
   // Checking SW1 status to go backward, or initiate settings mode
@@ -264,19 +408,14 @@ void loop() {
 
       if(!digitalRead(SW2)){
         //both are pressed, entering settings mode
-        write_floor_addr();
+        select_floor_address();
       }
       else{
-        //we've got a long press, lets go speedy
-        analogWrite(DRIVE1, 255);
-        analogWrite(DRIVE2, 0);
-        
+        //we've got a long press, lets reverse 
         while(!digitalRead(SW1)){
-          //do nothing
+          feeder->peel(50, false);
         }
-      
-        analogWrite(DRIVE1, 0);
-        analogWrite(DRIVE2, 0);
+        
       }
       
     }
@@ -294,24 +433,18 @@ void loop() {
 
       if(!digitalRead(SW1)){
         //both are pressed, entering settings mode
-        write_floor_addr();
+        //write_floor_addr();
       }
       else{
-        //we've got a long press, lets go speedy
-        analogWrite(DRIVE1, 0);
-        analogWrite(DRIVE2, 255);
-        
+        //we've got a long press, lets peel film 
         while(!digitalRead(SW2)){
-          //do nothing
+          feeder->peel(50, true);
         }
-      
-        analogWrite(DRIVE1, 0);
-        analogWrite(DRIVE2, 0);
       }
       
     }
     else{
-      feeder->feedDistance(1280, true);
+      feeder->feedDistance(40, true);
     }  
   }
 

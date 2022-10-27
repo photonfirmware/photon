@@ -11,11 +11,12 @@
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
 #define TICKS_PER_TENTH_MM 11.265625
+#define TENSION_TIME_PER_TENTH_MM 12
+#define TIMEOUT_TIME_PER_TENTH_MM 35
 
-#define TENSION_TIMEOUT 400
-#define TENSION_DELAY 800
+#define BACKLASH_COMP_TENTH_MM 10
 #define BACKWARD_FILM_SLACK_TIMEOUT 200
-#define SS_THRESHOLD 3
+#define SS_THRESHOLD 1
 
 //pid settings and gains
 #define OUTPUT_MIN 0
@@ -63,17 +64,33 @@ Feeder::FeedResult IndexFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
     return Feeder::FeedResult::SUCCESS;
 }
 
-//returns true if we reached position within timeout, false if we didn't
-bool IndexFeeder::moveInternal(uint32_t timeout, bool forward, uint16_t tenths_mm) {
-    signed long goal_mm;
+/* moveInternal()
+*   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
+*   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
+*   Because the tick count is only ever an approximation of the precise mm position, any rounding done from the mm->tick conversion will
+*   result in a signficiant amount of accrued error.
+*
+*   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the PID loop. We do this by
+*   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to 
+*   absolute positioning vs. relative positioning in Marlin. Every mm->tick calculation needs to be done based on the initial 0 tick position.
+*
+*/
+bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
+    signed long goal_mm, timeout, signed_mm;
+
+    timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
 
     if(!forward){
-        tenths_mm = tenths_mm * -1;
+        signed_mm = tenths_mm * -1;
+    }
+    else{
+        signed_mm = tenths_mm;
     }
 
-    // updating position
-    goal_mm = _position + tenths_mm;
-    float goal_ticks = goal_mm * TICKS_PER_TENTH_MM;
+    goal_mm = _position + signed_mm;
+    // calculating goal_tick based on absolute, not relative position
+    float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
+    float goal_tick = round(goal_tick_precise);
 
     unsigned long start_time = millis();
 
@@ -86,15 +103,15 @@ bool IndexFeeder::moveInternal(uint32_t timeout, bool forward, uint16_t tenths_m
     FastPID pid(Kp, Ki, Kd, Hz, output_bits, output_signed);
     pid.setOutputRange(-255, 255);
 
-    int ss_monitor[10] = {100, 100, 100, 100, 100};
+    int ss_monitor[5] = {100, 100, 100, 100, 100};
     int ss_index = 0;
 
     while(millis() < start_time + timeout){
 
-        signed long current_pos = _encoder->getPosition();        
+        signed long current_tick = _encoder->getPosition();        
 
         // updating steady state array with this iteration's error
-        signed long error = fabs(goal_pos - current_pos);
+        signed long error = fabs(goal_tick - current_tick);
         ss_monitor[ss_index] = error;
 
         // increment steady state array's counter
@@ -108,19 +125,23 @@ bool IndexFeeder::moveInternal(uint32_t timeout, bool forward, uint16_t tenths_m
         // setting ss to false if any of the values in ss_monitor are over the threshold
         bool ss = true;
         for(int i = 0; i<5; i++){
-            if(ss_monitor[i] > 2){
+            if(ss_monitor[i] > SS_THRESHOLD){
                 ss = false;
                 break;
             }
         }
 
+        // if we've hit steady state, return true
         if(ss){
             ret = true;
+            //update position to be the new position
+            _position = goal_mm;
             break;
         }
+        // if we havent, continue to drive the PID
         else{
             // PID implementation
-            signed long output = pid.step(goal_pos, current_pos);
+            signed long output = pid.step(goal_tick, current_tick);
 
             if(output > 0){
                 analogWrite(_drive1_pin, 0);
@@ -135,28 +156,40 @@ bool IndexFeeder::moveInternal(uint32_t timeout, bool forward, uint16_t tenths_m
     }
 
     // be sure to turn off motors
-    analogWrite(_drive1_pin, 0);
-    analogWrite(_drive2_pin, 0);
+    stop();
 
-    // TODO: find some way of resetting encoder position so we dont creep up into our 2,147,483,647 limit on the variable
-    // running _encoder->setPosition(0) after every movement would accumulate too much error
+    // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
+    // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
+    // if(floor(goal_tick_precise) == goal_tick_precise){
+    //     _position = 0;
+    //     _encoder->setPosition(0);
+    // }
 
     return ret;
 }
 
-bool IndexFeeder::tension(uint32_t timeout) {
-    unsigned long start_millis, current_millis;
+bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
+    if(dir){
+        //peel film
+        digitalWrite(PA8, LOW);
+        analogWrite(_peel1_pin, 0);
+        analogWrite(_peel2_pin, 255);
+        delay(peel_time);
+        analogWrite(_peel1_pin, 0);
+        analogWrite(_peel2_pin, 0);
+        digitalWrite(PA8, HIGH);
 
-    //tension film
-    digitalWrite(PA8, LOW);
-    analogWrite(_peel1_pin, 0);
-    analogWrite(_peel2_pin, 200);
-    delay(TENSION_DELAY);
-    analogWrite(_peel1_pin, 0);
-    analogWrite(_peel2_pin, 0);
-    digitalWrite(PA8, HIGH);
-
-
+    }
+    else{
+        //peel film
+        digitalWrite(PA8, LOW);
+        analogWrite(_peel1_pin, 255);
+        analogWrite(_peel2_pin, 0);
+        delay(peel_time);
+        analogWrite(_peel1_pin, 0);
+        analogWrite(_peel2_pin, 0);
+        digitalWrite(PA8, HIGH);
+    }
     return true;
 }
 
@@ -165,15 +198,24 @@ bool IndexFeeder::moveForward(uint16_t tenths_mm) {
     stop();
     
     //turn on peel motor
-    analogWrite(_peel1_pin, 255);
-    analogWrite(_peel2_pin, 0);
+    signed long peel_time = tenths_mm * TENSION_TIME_PER_TENTH_MM;
+    peel(peel_time, true);
+
+    //start timer before moving tape
+    unsigned long start = millis();
     
     //move tape
-    moveInternal(10000, true, tenths_mm);
+    moveInternal(true, tenths_mm);
 
-    //turn off peel motor
-    analogWrite(_peel1_pin, 0);
-    analogWrite(_peel2_pin, 0);
+    //calculate how long we drove tape for
+    unsigned long drive_time = millis() - start;
+
+    // //peel for any remaining time needed, if any
+    // signed long peel_time = (tenths_mm * TENSION_TIME_PER_TENTH_MM) - drive_time;
+    // if(peel_time < 0){
+    //     peel_time = 0;
+    // }
+    // peel(peel_time, true);
 
     return true;
 }
@@ -182,28 +224,17 @@ bool IndexFeeder::moveBackward(uint16_t tenths_mm) {
     // First, ensure everything is stopped
     stop();
 
-    // Next, unspool some film to give the tape slack. imprecise amount because we retention later
-    analogWrite(_peel1_pin, 0);
-    analogWrite(_peel2_pin, 255);
-
-    //allow reverse peel to happen
-    delay(BACKWARD_FILM_SLACK_TIMEOUT);
-
-    //stop reverse peeling
-    analogWrite(_peel1_pin, 0);
-    analogWrite(_peel2_pin, 0);
+    // Next, unspool some film to give the tape slack
+    signed long peel_time = (tenths_mm * TENSION_TIME_PER_TENTH_MM);
+    peel(peel_time, false);
 
     // move tape backward
-    // TODO backlash comp needs to be added here
-    moveInternal(5000, false, tenths_mm);
+    // first we overshoot by the backlash distance, then approach from the forward direction
+    moveInternal(false, tenths_mm + BACKLASH_COMP_TENTH_MM);
+    moveInternal(true, BACKLASH_COMP_TENTH_MM);
 
-    //peel again
-    analogWrite(_peel1_pin, 255);
-    analogWrite(_peel2_pin, 0);
-
-    delay(200);
-
-    stop();
+    //peel again to take up any slack
+    peel(200, true);
 
     return true;
 
