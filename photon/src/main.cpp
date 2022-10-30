@@ -1,7 +1,10 @@
 /*
 Photon Feeder Firmware
-Stephen Hawes 2022
+Part of the LumenPnP Project
+GNU GPL v3
+2022
 */
+
 #include "define.h"
 
 #ifdef UNIT_TEST
@@ -26,9 +29,10 @@ Stephen Hawes 2022
 
 #define BAUD_RATE 57600
 
-//
-//global variables
-//
+//-----
+// Global Variables
+//-----
+
 byte addr = 0x00;
 
 #ifdef UNIT_TEST
@@ -74,7 +78,7 @@ void byte_to_light(byte num){
 }
 
 byte read_floor_address(){
-  byte i;                         // This is for the for loops
+  byte i;
   byte data[32]; 
   
   // reset the 1-wire line, and return false if no chip detected
@@ -127,7 +131,7 @@ byte write_floor_address(byte address){
   
   // reset the 1-wire line, and return false if no chip detected
   if(!oneWire.reset()){
-    return 0x80;
+    return 0xFF;
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
@@ -165,7 +169,7 @@ byte write_floor_address(byte address){
 
   // reset the 1-wire line, and return failure if no chip detected
   if(!oneWire.reset()){
-    return 0x80;
+    return 0xFF;
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
@@ -195,7 +199,7 @@ byte write_floor_address(byte address){
 
   // reset the 1-wire line, and return false if no chip detected
   if(!oneWire.reset()){
-    return 0x80;
+    return 0xFF;
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
@@ -223,7 +227,7 @@ byte write_floor_address(byte address){
 
   // send reset
   if(!oneWire.reset()){
-    return 0x80;
+    return 0xFF;
   }
 
   // check the floor address by reading
@@ -237,7 +241,7 @@ byte write_floor_address(byte address){
     return address;
   }
 
-  return 0x80;
+  return 0xFF;
 
 }
 
@@ -258,7 +262,7 @@ bool select_floor_address(){
 
   while(true){
     //we stay in here as long as both buttons aren't pressed
-    if(!digitalRead(SW1) && current_selection < 31){
+    if(!digitalRead(SW1) && current_selection > 1){
       delay(LONG_PRESS_DELAY);
       if(!digitalRead(SW1) && !digitalRead(SW2)){
         break;
@@ -268,7 +272,7 @@ bool select_floor_address(){
         //do nothing
       }
     }
-    if(!digitalRead(SW2) && current_selection > 1){
+    if(!digitalRead(SW2) && current_selection < 63){
       delay(LONG_PRESS_DELAY);
       if(!digitalRead(SW1) && !digitalRead(SW2)){
         break;
@@ -281,18 +285,24 @@ bool select_floor_address(){
     byte_to_light(current_selection);
   }
 
-  byte_to_light(0x00);
+  ALL_LEDS_ON();
+
+  // wait for the buttons to come up
+  while(!digitalRead(SW1) || !digitalRead(SW2)){
+    //do nothing
+  }
 
   byte written_address = write_floor_address(current_selection);
 
   // if failed to write
   if(written_address == 0x80){
+    while(true){
+      byte_to_light(0x03);
+      delay(100);
+      ALL_LEDS_OFF();
+      delay(100);
+    }
     return false;
-  }
-
-  // wait for the buttons to come up
-  while(!digitalRead(SW1) || !digitalRead(SW2)){
-    //do nothing
   }
 
   // If the network is configured, update the local address
@@ -385,20 +395,10 @@ void setup() {
 }
 
 //------
-//MAIN CONTROL LOOP
+//  MAIN CONTROL LOOP
 //------
-// cppcheck-suppress unusedFunction
-void loop() {
 
-  // while(true){
-  //   int pos = encoder.getPosition();
-  //   if (pos > 100){
-  //     digitalWrite(LED1, LOW);
-  //   }
-  //   else if (pos < -100){
-  //     digitalWrite(LED2, LOW);
-  //   }
-  // }
+void loop() {
 
   // Checking SW1 status to go backward, or initiate settings mode
   if(!digitalRead(SW1)){
@@ -433,7 +433,7 @@ void loop() {
 
       if(!digitalRead(SW1)){
         //both are pressed, entering settings mode
-        //write_floor_addr();
+        select_floor_address();
       }
       else{
         //we've got a long press, lets peel film 

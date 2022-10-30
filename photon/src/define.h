@@ -22,14 +22,6 @@
 #define DRIVE_ENC_A PB6
 #define DRIVE_ENC_B PB7
 
-//#define FILM_TENSION  PA3
-
-//#define VCNT2020 PA1
-//#define QRE1113  PA4
-//-----------------------
-//#define OPTO_SIG QRE1113
-
-#define LONG_PRESS_DELAY 500
+#define LONG_PRESS_DELAY 300
 
 //#define DEBUG
-//#define OPTO_DEBUG
