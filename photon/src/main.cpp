@@ -28,10 +28,10 @@ GNU GPL v3
 #include <IndexFeederProtocol.h>
 #include <IndexNetworkLayer.h>
 
-// #include <rs485/rs485bus.hpp>
-// #include <rs485/bus_adapters/hardware_serial.h>
-// #include <rs485/protocols/photon.h>
-// #include <rs485/packetizer.h>
+#include <rs485/rs485bus.hpp>
+#include <rs485/bus_adapters/hardware_serial.h>
+#include <rs485/protocols/photon.h>
+#include <rs485/packetizer.h>
 
 #define BAUD_RATE 9600
 
@@ -366,8 +366,8 @@ void setup() {
   delay(75);
 
   //setting initial pin states
-  digitalWrite(DE, HIGH);
-  digitalWrite(_RE, HIGH);
+  digitalWrite(DE, LOW);
+  digitalWrite(_RE, LOW);
 
   // put current floor address on the leds if detected
 
@@ -387,9 +387,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
 
   // Setup Feeder
-  feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
-  protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  network = new IndexNetworkLayer(&ser, DE, _RE, addr, protocol);
+  // feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
+  // protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
+  // network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
   
 }
 
@@ -450,15 +450,15 @@ void loop() {
   //listening on rs-485 for a command
   if (network != NULL) {
 
-    network->tick();
+    //network->tick();
+
+  }
 
     // this chunk just reads in bytes and puts them on the leds
-    // byte buffer[1];
-    // while(ser.available()){
-    //   ser.readBytes(buffer, 1);
-    //   byte_to_light(buffer[0]);
-    // }
-
+  byte buffer[1];
+  while(ser.available()){
+    ser.readBytes(buffer, 1);
+    byte_to_light(buffer[0]);
   }
 
   // end main loop

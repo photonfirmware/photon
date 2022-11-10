@@ -1,11 +1,16 @@
 #ifndef _INDEX_PROTOCOL_H
 #define _INDEX_PROTOCOL_H
 
+#include "define.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <IndexPacketHandler.h>
 #include <FastCRC.h>
 #include "Stream.h"
+
+#include <rs485/rs485bus.hpp>
+#include <rs485/packetizer.h>
 
 #define INDEX_NETWORK_MAX_PDU 32
 #define INDEX_PROTOCOL_CHECKSUM_LENGTH 2
@@ -16,8 +21,7 @@
 class IndexNetworkLayer
 {
 public:
-    IndexNetworkLayer(Stream* stream, uint8_t address, IndexPacketHandler* handler);
-    IndexNetworkLayer(Stream* stream, uint8_t de_pin, uint8_t re_pin, uint8_t address, IndexPacketHandler* handler);
+    IndexNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, IndexPacketHandler* handler);
 
     virtual void setTimeoutPeriod(uint32_t timeout);
     virtual uint32_t getTimeoutPeriod();
@@ -40,9 +44,10 @@ private:
         PAYLOAD_RECEIVED
     };
 
-    IndexNetworkLayer::ProtocolState _state;
-    Stream* _stream;
+    Packetizer* _packetizer;
+    RS485Bus<RS485_BUS_BUFFER_SIZE>* _bus;
     bool _rs485_enable;
+    uint8_t _buffer[RS485_BUS_BUFFER_SIZE];
     uint8_t _de_pin;
     uint8_t _re_pin;
     uint8_t _local_address;
@@ -55,7 +60,7 @@ private:
     uint32_t _last_byte_time;
     uint32_t _timeout_period;
 
-    void process(uint8_t *buffer, size_t buffer_length, uint32_t time);
+    void process(uint8_t *buffer, size_t buffer_length);
     void reset();
 };
 

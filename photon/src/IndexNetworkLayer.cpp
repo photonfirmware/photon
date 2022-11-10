@@ -1,7 +1,13 @@
+#include "define.h"
+
 #include "IndexNetworkLayer.h"
 #include "Arduino.h"
 #include <cstring>
 #include <cstdio>
+
+#include <rs485/rs485bus.hpp>
+#include <rs485/packetizer.h>
+
 #ifndef NATIVE
 #include "util.h"
 #endif
@@ -10,11 +16,7 @@
 #define INDEX_INCOMING_BUFFER_SIZE 16
 #define RS485_CONTROL_DELAY 10
 
-IndexNetworkLayer::IndexNetworkLayer(Stream* stream, uint8_t address, IndexPacketHandler* handler) :  _stream(stream), _rs485_enable(false), _local_address(address), _handler(handler), _timeout_period(INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS) {
-    reset();
-}
-
-IndexNetworkLayer::IndexNetworkLayer(Stream* stream, uint8_t de_pin, uint8_t re_pin, uint8_t address, IndexPacketHandler* handler) : _stream(stream), _rs485_enable(true), _de_pin(de_pin), _re_pin(re_pin), _local_address(address), _handler(handler), _timeout_period(INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS) {
+IndexNetworkLayer::IndexNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, IndexPacketHandler* handler) :  _packetizer(packetizer), _rs485_enable(false), _bus(bus), _local_address(address), _handler(handler), _timeout_period(INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS) {
     reset();
 }
 
@@ -35,19 +37,29 @@ uint8_t IndexNetworkLayer::getLocalAddress() {
 }
 
 void IndexNetworkLayer::tick() {
-    // Read any available data from the stream and pass to the process function
-    // to parse
-    uint8_t buffer[INDEX_INCOMING_BUFFER_SIZE];
-    size_t length = _stream->available();
-    while (length > 0) {
-        uint32_t time = millis();
-        if (length > sizeof(buffer)) {
-            length = sizeof(buffer);
+
+    // triggers if the packetizer detects that it has a packet
+    if(_packetizer->hasPacket()){
+        // find packet length
+        uint8_t packet_length = _packetizer->packetLength();
+        // make buffer of that length
+        uint8_t buffer[packet_length];
+
+        // iterate through all bytes in RS485 object and plop them in the buffer
+        for(int i = 0; i<packet_length; i++){
+            buffer[i] = (*_bus)[i];
         }
-        length = _stream->readBytes(buffer, length);
-        process(buffer, length, time);
-        length = _stream->available();
-    }
+
+        // process the buffer
+        //process(buffer, packet_length);
+        _handler->handle(this, _buffer, _length);
+
+        // clear the packet
+        _packetizer->clearPacket();
+
+    }//0201011050
+
+
 }
 
 bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length) {
@@ -67,118 +79,44 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
     crc_array[0] = (uint8_t)((crc >> 8) & 0x0ff);
     crc_array[1] = (uint8_t)(crc & 0x0ff);
 
-
-    if (_rs485_enable) {
-        digitalWrite(_de_pin, HIGH); // Enable The Transmitter (DE pin)
-        digitalWrite(_re_pin, HIGH); // Disable The Receiver (/RE pin)
-        delay(RS485_CONTROL_DELAY);
-    }
-
-    // Transmit The Address
-    _stream->write(&destination_address, 1);
+    // // Transmit The Address
+    // _stream->write(&destination_address, 1);
     
-    // Transmit The Length
-    _stream->write(&length, 1);
+    // // Transmit The Length
+    // _stream->write(&length, 1);
 
-    // Transmit The Data
-    _stream->write(buffer, buffer_length);
+    // // Transmit The Data
+    // _stream->write(buffer, buffer_length);
 
-    // Transmit CRC
-    _stream->write(crc_array, INDEX_PROTOCOL_CHECKSUM_LENGTH);
+    // // Transmit CRC
+    // _stream->write(crc_array, INDEX_PROTOCOL_CHECKSUM_LENGTH);
 
-    // Flush The Data
-    _stream->flush();
+    // first, find the length of the packet we're sending
+    uint8_t packet_buffer_length = buffer_length + 4;
 
-    if (_rs485_enable) {
-        delay(RS485_CONTROL_DELAY);
-        digitalWrite(_de_pin, LOW); // Disable The Transmitter (DE pin)
-        digitalWrite(_re_pin, LOW); // Enable The Receiver (/RE pin)
-        delay(1);
+    // then, make a buffer that size
+    uint8_t packet_buffer[packet_buffer_length];
+
+    // now drop in the destination address and length
+    packet_buffer[0] = destination_address;
+    packet_buffer[1] = length;
+
+    // drop in the data buffer
+    for(int i = 0; i < length; i++){
+        packet_buffer[i + 2] = buffer[i];
     }
+
+    // add crc bytes
+    packet_buffer[packet_buffer_length - 2] = crc_array[0];
+    packet_buffer[packet_buffer_length - 1] = crc_array[1];
+
+    _packetizer->writePacket(packet_buffer, packet_buffer_length);
 
     return true;
 }
 
-void IndexNetworkLayer::process(uint8_t *buffer, size_t buffer_length, uint32_t time) {
-
-    size_t idx = 0;
-
-    // Check Timer Is Less Than _last_byte_time
-    uint32_t _timeout_threshold = _last_byte_time + _timeout_period;
-
-    if (_timeout_threshold < time || _timeout_threshold < _last_byte_time) {
-        // The byte was not received in time;
-        reset();
-    }
-
-    // Set Last Byte Time or Reset
-    _last_byte_time = time;
-
-    while (idx < buffer_length) {
-        // Process Byte
-        switch (_state) {
-        case AWAITING_ADDRESS:
-            _address = buffer[idx];
-            _state = ADDRESS_RECEIVED;
-            break;
-        case ADDRESS_RECEIVED:
-            _length = buffer[idx];
-            _index = 0;
-            if (_length > 0) {
-                _state = LENGTH_RECEIVED;
-            } else {
-                _state = PAYLOAD_RECEIVED;
-            }
-            break;
-        case LENGTH_RECEIVED:
-            // Only update the array if the value is smaller than the max PDU
-            // We don't just reset here are the packet format could be ok, and 
-            // resetting could get us out of sync.
-            if (_index < INDEX_NETWORK_MAX_PDU) {
-                _payload[_index] = buffer[idx];
-            }
-            _index++;
-            if (_index >= _length) {
-                _index = 0;
-                _state = PAYLOAD_RECEIVED;
-            }
-            break;
-        case PAYLOAD_RECEIVED:
-            // receive the checksum
-            _rx_checksum[_index++] = buffer[idx];
-            if (_index >= INDEX_PROTOCOL_CHECKSUM_LENGTH) {
-            
-                // Cacluate The Frame Checksum
-                // Compare Frame Checksum
-                uint16_t payload_length = (_length < INDEX_NETWORK_MAX_PDU) ? _length : INDEX_NETWORK_MAX_PDU;
-                _CRC16.modbus(&_address, 1);
-                _CRC16.modbus_upd(&_length, 1);
-                uint16_t calc_crc = _CRC16.modbus_upd(_payload, payload_length);
-
-                // Done with htons to ensure platform independence
-                uint16_t rx_crc = _rx_checksum[0] << 8 | _rx_checksum[1];
-                rx_crc = ntohs(rx_crc);
-
-                if (calc_crc == rx_crc && (_address == _local_address || _address == INDEX_NETWORK_BROADCAST_ADDRESS) ){
-                    // Time For Us To Dispatch This
-                    if (_handler != NULL) {
-                        _handler->handle(this, _payload, _length);
-                    }
-                }
-                reset();
-            }
-
-            break;
-        }
-
-        // Handle The Index
-        idx++;
-    }
-}
-
 void IndexNetworkLayer::reset() {
     // Reset The State Machine
-    _state = AWAITING_ADDRESS;
     _address = 0;
     _length = 0;
     _index = 0;
@@ -186,8 +124,4 @@ void IndexNetworkLayer::reset() {
     memset(_rx_checksum, 0, INDEX_PROTOCOL_CHECKSUM_LENGTH);
     _last_byte_time = 0;
 
-    if (_rs485_enable) {
-        digitalWrite(_de_pin, LOW); // Disable The Transmitter (DE pin)
-        digitalWrite(_re_pin, LOW); // Enable The Receiver (/RE pin)
-    }
 }
