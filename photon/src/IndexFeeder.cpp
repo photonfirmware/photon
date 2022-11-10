@@ -11,7 +11,7 @@
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
 #define TICKS_PER_TENTH_MM 11.265625
-#define TENSION_TIME_PER_TENTH_MM 12
+#define TENSION_TIME_PER_TENTH_MM 17
 #define TIMEOUT_TIME_PER_TENTH_MM 35
 
 #define BACKLASH_COMP_TENTH_MM 10
@@ -173,7 +173,7 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
         //peel film
         digitalWrite(PA8, LOW);
         analogWrite(_peel1_pin, 0);
-        analogWrite(_peel2_pin, 255);
+        analogWrite(_peel2_pin, 155);
         delay(peel_time);
         analogWrite(_peel1_pin, 0);
         analogWrite(_peel2_pin, 0);
@@ -183,7 +183,7 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
     else{
         //peel film
         digitalWrite(PA8, LOW);
-        analogWrite(_peel1_pin, 255);
+        analogWrite(_peel1_pin, 155);
         analogWrite(_peel2_pin, 0);
         delay(peel_time);
         analogWrite(_peel1_pin, 0);

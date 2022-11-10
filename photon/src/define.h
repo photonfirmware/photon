@@ -24,4 +24,6 @@
 
 #define LONG_PRESS_DELAY 300
 
+#define RS485_BUS_BUFFER_SIZE 64
+
 //#define DEBUG

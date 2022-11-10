@@ -70,7 +70,7 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
 
     if (_rs485_enable) {
         digitalWrite(_de_pin, HIGH); // Enable The Transmitter (DE pin)
-        //digitalWrite(_re_pin, HIGH); // Disable The Receiver (/RE pin)
+        digitalWrite(_re_pin, HIGH); // Disable The Receiver (/RE pin)
         delay(RS485_CONTROL_DELAY);
     }
 

@@ -14,6 +14,7 @@ GNU GPL v3
   #include <HardwareSerial.h>
   #include <OneWire.h>
   #include <ArduinoUniqueID.h>
+  #include <rs485/rs485bus.hpp>
 #endif // UNIT_TEST
 
 #ifndef MOTOR_DEPS
@@ -27,7 +28,12 @@ GNU GPL v3
 #include <IndexFeederProtocol.h>
 #include <IndexNetworkLayer.h>
 
-#define BAUD_RATE 57600
+// #include <rs485/rs485bus.hpp>
+// #include <rs485/bus_adapters/hardware_serial.h>
+// #include <rs485/protocols/photon.h>
+// #include <rs485/packetizer.h>
+
+#define BAUD_RATE 9600
 
 //-----
 // Global Variables
@@ -43,6 +49,12 @@ HardwareSerial ser(PA10, PA9);
 
 // EEPROM
 OneWire oneWire(ONE_WIRE);
+
+// RS485
+// HardwareSerialBusIO busIO(&ser);
+// RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, DE, _RE);
+// PhotonProtocol photon_protocol;
+// Packetizer packetizer(bus, photon_protocol);
 
 // Encoder
 RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
@@ -83,6 +95,7 @@ byte read_floor_address(){
   
   // reset the 1-wire line, and return false if no chip detected
   if(!oneWire.reset()){
+    addr = 0xFF;
     return 0xFF;
   }
 
@@ -111,6 +124,7 @@ byte read_floor_address(){
   return data[0];
 }
 
+byte write_floor_address(byte address){
 /*
     write_floor_address()
       success returns programmed address byte
@@ -120,7 +134,7 @@ This function takes a byte as in input, and flashes it to address 0x0000 in the 
 The DS28E07 requires a million and one steps to make this happen. Reference the datasheet for details:
 https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
 */
-byte write_floor_address(byte address){
+
 
   byte i;                         // This is for the for loops
   //-----
@@ -214,7 +228,6 @@ byte write_floor_address(byte address){
   oneWire.write(read_data[2],1);
 
   // wait for programming, we'll get alternating 1s and 0s when done
-  // TODO add timeout
   float timer = millis();
   while(true){
     if(oneWire.read() == 0xAA){
@@ -344,40 +357,26 @@ void setup() {
   
   //init led blink
   ALL_LEDS_ON();
-  delay(50);
+  delay(75);
   ALL_LEDS_OFF();
-  delay(50);
+  delay(75);
   ALL_LEDS_ON();
-  delay(50);
+  delay(75);
   ALL_LEDS_OFF();
-  delay(50);
+  delay(75);
 
   //setting initial pin states
   digitalWrite(DE, HIGH);
   digitalWrite(_RE, HIGH);
 
-  // put current floor address on the leds
+  // put current floor address on the leds if detected
+
   byte_to_light(read_floor_address());
 
-  if(addr == 0x00){ //floor 1 wire eeprom has not been programmed
-    //somehow prompt to program eeprom
-    while(true){
-      byte_to_light(0x02);
-      delay(100);
-      ALL_LEDS_OFF();
-      delay(100);
-    }
-
-  }
-  else if(addr == 0xFF){
+  if(addr == 0xFF){
     //no eeprom chip detected
     // blink annoyingly until it's solved
-    while(true){
-      byte_to_light(0x01);
-      delay(100);
-      ALL_LEDS_OFF();
-      delay(100);
-    }
+    byte_to_light(0x7F);
   }  
 
   //Starting rs-485 serial
@@ -447,10 +446,19 @@ void loop() {
       feeder->feedDistance(40, true);
     }  
   }
-
+  
   //listening on rs-485 for a command
   if (network != NULL) {
+
     network->tick();
+
+    // this chunk just reads in bytes and puts them on the leds
+    // byte buffer[1];
+    // while(ser.available()){
+    //   ser.readBytes(buffer, 1);
+    //   byte_to_light(buffer[0]);
+    // }
+
   }
 
   // end main loop
