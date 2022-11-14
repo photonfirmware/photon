@@ -7,6 +7,7 @@
 
 #include <rs485/rs485bus.hpp>
 #include <rs485/packetizer.h>
+#include "rs485/protocols/checksums/modbus_rtu.h"
 
 #ifndef NATIVE
 #include "util.h"
@@ -16,7 +17,7 @@
 #define INDEX_INCOMING_BUFFER_SIZE 16
 #define RS485_CONTROL_DELAY 10
 
-IndexNetworkLayer::IndexNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, IndexPacketHandler* handler) :  _packetizer(packetizer), _rs485_enable(false), _bus(bus), _local_address(address), _handler(handler), _timeout_period(INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS) {
+IndexNetworkLayer::IndexNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, IndexPacketHandler* handler) :  _packetizer(packetizer), _bus(bus), _local_address(address), _handler(handler), _timeout_period(INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS) {
     reset();
 }
 
@@ -36,29 +37,34 @@ uint8_t IndexNetworkLayer::getLocalAddress() {
     return _local_address;
 }
 
-void IndexNetworkLayer::tick() {
+uint8_t IndexNetworkLayer::tick() {
 
     // triggers if the packetizer detects that it has a packet
-    if(_packetizer->hasPacket()){
-        // find packet length
-        uint8_t packet_length = _packetizer->packetLength();
-        // make buffer of that length
-        uint8_t buffer[packet_length];
+    _packetizer->hasPacket();
+    uint8_t packet_length = _packetizer->packetLength();
 
-        // iterate through all bytes in RS485 object and plop them in the buffer
-        for(int i = 0; i<packet_length; i++){
-            buffer[i] = (*_bus)[i];
-        }
+    if(packet_length == 0){
+        return 0x00;
+    }
 
-        // process the buffer
-        //process(buffer, packet_length);
-        _handler->handle(this, _buffer, _length);
+    // make buffer of that length
+    uint8_t buffer[packet_length];
 
-        // clear the packet
-        _packetizer->clearPacket();
+    // iterate through all bytes in RS485 object and plop them in the buffer
+    for(int i = 0; i<packet_length; i++){
+        buffer[i] = (*_bus)[i];
+    }
 
-    }//0201011050
+    // handle buffer
+    _handler->handle(this, buffer, packet_length);
 
+    // clear the packet
+    _packetizer->clearPacket();
+
+    //return first buffer byte for led debugging
+    return buffer[0];
+
+    //0201011050
 
 }
 
@@ -69,15 +75,31 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
         return false;
     }
 
-    uint8_t length = buffer_length;
     uint8_t crc_array[INDEX_PROTOCOL_CHECKSUM_LENGTH];
-    uint16_t crc = _CRC16.modbus(&destination_address, 1);
-    crc = _CRC16.modbus_upd(&length, 1);
-    crc = _CRC16.modbus_upd(buffer, buffer_length);
-    crc = htons(crc);
+    ModbusRTUChecksum crc;
+
+    crc.add(destination_address);
+    crc.add(buffer_length);
+
+    for(int i = 0;i<buffer_length;i++){
+        crc.add(buffer[i]);
+    }
+
+    uint16_t checksum = crc.getChecksum();
 
     crc_array[0] = (uint8_t)((crc >> 8) & 0x0ff);
     crc_array[1] = (uint8_t)(crc & 0x0ff);
+
+
+    // uint8_t length = buffer_length;
+    // uint8_t crc_array[INDEX_PROTOCOL_CHECKSUM_LENGTH];
+    // uint16_t crc = _CRC16.modbus(&destination_address, 1);
+    // crc = _CRC16.modbus_upd(&length, 1);
+    // crc = _CRC16.modbus_upd(buffer, buffer_length);
+    // crc = htons(crc);
+
+    // crc_array[0] = (uint8_t)((crc >> 8) & 0x0ff);
+    // crc_array[1] = (uint8_t)(crc & 0x0ff);
 
     // // Transmit The Address
     // _stream->write(&destination_address, 1);
@@ -99,10 +121,10 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
 
     // now drop in the destination address and length
     packet_buffer[0] = destination_address;
-    packet_buffer[1] = length;
+    packet_buffer[1] = buffer_length;
 
     // drop in the data buffer
-    for(int i = 0; i < length; i++){
+    for(int i = 0; i < buffer_length; i++){
         packet_buffer[i + 2] = buffer[i];
     }
 

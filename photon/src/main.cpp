@@ -51,10 +51,10 @@ HardwareSerial ser(PA10, PA9);
 OneWire oneWire(ONE_WIRE);
 
 // RS485
-// HardwareSerialBusIO busIO(&ser);
-// RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, DE, _RE);
-// PhotonProtocol photon_protocol;
-// Packetizer packetizer(bus, photon_protocol);
+HardwareSerialBusIO busIO(&ser);
+RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, DE, _RE);
+PhotonProtocol photon_protocol;
+Packetizer packetizer(bus, photon_protocol);
 
 // Encoder
 RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
@@ -387,9 +387,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
 
   // Setup Feeder
-  // feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
-  // protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  // network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
+  feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
+  protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
+  network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
   
 }
 
@@ -450,16 +450,20 @@ void loop() {
   //listening on rs-485 for a command
   if (network != NULL) {
 
-    //network->tick();
+    uint8_t light = network->tick();
+    if(light != 0x00){
+      byte_to_light(light);
+    }
+    
 
   }
 
-    // this chunk just reads in bytes and puts them on the leds
-  byte buffer[1];
-  while(ser.available()){
-    ser.readBytes(buffer, 1);
-    byte_to_light(buffer[0]);
-  }
+  // this chunk just reads in bytes and puts them on the leds
+  // byte buffer[1];
+  // while(ser.available()){
+  //   ser.readBytes(buffer, 1);
+  //   byte_to_light(buffer[0]);
+  // }
 
   // end main loop
 }

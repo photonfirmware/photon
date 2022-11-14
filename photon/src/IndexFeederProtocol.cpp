@@ -63,20 +63,20 @@ void IndexFeederProtocol::handle(IndexNetworkLayer *instance, uint8_t *buffer, s
     
     // The buffer must be at least one octet long as it needs to contain the 
     // command id.
-    if (buffer_length == 0) {
+    if (buffer_length <= 0) {
         return;
     }
 
     protocol_command_t *command_entry = NULL;
-    uint8_t command_id = buffer[0];
+    uint8_t command_id = buffer[1];
 
     // Check if the command exists and the length is found.
-    if ( !checkLength(command_id, buffer_length - 1) ) {
+    if ( !checkLength(command_id, buffer_length - 5) ) {
         return;
     }
 
     uint8_t *command_payload = &buffer[1];
-    size_t command_payload_size = buffer_length - 1;
+    size_t command_payload_size = buffer_length - 3;
 
     switch(command_id) {
     case GET_FEEDER_ID:
@@ -125,9 +125,12 @@ bool IndexFeederProtocol::checkLength(uint8_t command_id, size_t command_payload
         }
     }
 
+    uint8_t min = command_entry->min_payload_length;
+    uint8_t max = command_entry->max_payload_length;
+
     if (command_entry != NULL && 
-        command_entry->min_payload_length <= command_payload_length && 
-        command_entry->max_payload_length >= command_payload_length) {
+        min <= command_payload_length && 
+        max >= command_payload_length) {
         // The command entry is found and the payload is within the bounds
         return_value = true;
     }

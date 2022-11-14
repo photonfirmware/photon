@@ -173,7 +173,7 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
         //peel film
         digitalWrite(PA8, LOW);
         analogWrite(_peel1_pin, 0);
-        analogWrite(_peel2_pin, 155);
+        analogWrite(_peel2_pin, 255);
         delay(peel_time);
         analogWrite(_peel1_pin, 0);
         analogWrite(_peel2_pin, 0);
@@ -183,7 +183,7 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
     else{
         //peel film
         digitalWrite(PA8, LOW);
-        analogWrite(_peel1_pin, 155);
+        analogWrite(_peel1_pin, 255);
         analogWrite(_peel2_pin, 0);
         delay(peel_time);
         analogWrite(_peel1_pin, 0);

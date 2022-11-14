@@ -6,11 +6,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <IndexPacketHandler.h>
-#include <FastCRC.h>
+//#include <FastCRC.h>
 #include "Stream.h"
 
 #include <rs485/rs485bus.hpp>
 #include <rs485/packetizer.h>
+#include "rs485/protocols/checksums/modbus_rtu.h"
 
 #define INDEX_NETWORK_MAX_PDU 32
 #define INDEX_PROTOCOL_CHECKSUM_LENGTH 2
@@ -29,12 +30,12 @@ public:
     virtual void setLocalAddress(uint8_t address);
     virtual uint8_t getLocalAddress();
 
-    virtual void tick();
+    virtual uint8_t tick();
 
     virtual bool transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length);
 
 private:
-    FastCRC16 _CRC16;
+//    FastCRC16 _CRC16;
 
     enum ProtocolState
     {
@@ -46,10 +47,6 @@ private:
 
     Packetizer* _packetizer;
     RS485Bus<RS485_BUS_BUFFER_SIZE>* _bus;
-    bool _rs485_enable;
-    uint8_t _buffer[RS485_BUS_BUFFER_SIZE];
-    uint8_t _de_pin;
-    uint8_t _re_pin;
     uint8_t _local_address;
     IndexPacketHandler* _handler;
     uint8_t _address;
