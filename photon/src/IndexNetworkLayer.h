@@ -52,6 +52,7 @@ private:
     uint8_t _address;
     uint8_t _length;
     uint8_t _index;
+    uint8_t _send_buffer[64];
     uint8_t _payload[INDEX_NETWORK_MAX_PDU];
     uint8_t _rx_checksum[INDEX_PROTOCOL_CHECKSUM_LENGTH];
     uint32_t _last_byte_time;

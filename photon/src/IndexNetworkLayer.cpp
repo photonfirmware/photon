@@ -40,29 +40,33 @@ uint8_t IndexNetworkLayer::getLocalAddress() {
 uint8_t IndexNetworkLayer::tick() {
 
     // triggers if the packetizer detects that it has a packet
-    _packetizer->hasPacket();
-    uint8_t packet_length = _packetizer->packetLength();
+    if (_packetizer->hasPacket()){
+        uint8_t packet_length = _packetizer->packetLength();
 
-    if(packet_length == 0){
-        return 0x00;
+        if(packet_length == 0){
+            return 0x00;
+        }
+
+        // make buffer of that length
+        uint8_t buffer[packet_length];
+
+        // iterate through all bytes in RS485 object and plop them in the buffer
+        for(int i = 0; i<packet_length; i++){
+            buffer[i] = (*_bus)[i];
+        }
+
+        // handle buffer
+        _handler->handle(this, buffer, packet_length);
+
+        // clear the packet
+        _packetizer->clearPacket();
+
+        //return first buffer byte for led debugging
+        return buffer[0];
+
     }
 
-    // make buffer of that length
-    uint8_t buffer[packet_length];
-
-    // iterate through all bytes in RS485 object and plop them in the buffer
-    for(int i = 0; i<packet_length; i++){
-        buffer[i] = (*_bus)[i];
-    }
-
-    // handle buffer
-    _handler->handle(this, buffer, packet_length);
-
-    // clear the packet
-    _packetizer->clearPacket();
-
-    //return first buffer byte for led debugging
-    return buffer[0];
+    return 0;
 
     //0201011050
 
@@ -114,25 +118,22 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
     // _stream->write(crc_array, INDEX_PROTOCOL_CHECKSUM_LENGTH);
 
     // first, find the length of the packet we're sending
-    uint8_t packet_buffer_length = buffer_length + 4;
-
-    // then, make a buffer that size
-    uint8_t packet_buffer[packet_buffer_length];
+    uint8_t send_buffer_length = buffer_length + 4;
 
     // now drop in the destination address and length
-    packet_buffer[0] = destination_address;
-    packet_buffer[1] = buffer_length;
+    _send_buffer[0] = destination_address;
+    _send_buffer[1] = buffer_length;
 
     // drop in the data buffer
     for(int i = 0; i < buffer_length; i++){
-        packet_buffer[i + 2] = buffer[i];
+        _send_buffer[i + 2] = buffer[i];
     }
 
     // add crc bytes
-    packet_buffer[packet_buffer_length - 2] = crc_array[0];
-    packet_buffer[packet_buffer_length - 1] = crc_array[1];
+    _send_buffer[send_buffer_length - 2] = crc_array[0];
+    _send_buffer[send_buffer_length - 1] = crc_array[1];
 
-    _packetizer->writePacket(packet_buffer, packet_buffer_length);
+    _packetizer->writePacket(_send_buffer, send_buffer_length);
 
     return true;
 }

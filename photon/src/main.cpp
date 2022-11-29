@@ -450,13 +450,12 @@ void loop() {
   //listening on rs-485 for a command
   if (network != NULL) {
 
-    uint8_t light = network->tick();
-    if(light != 0x00){
-      byte_to_light(light);
-    }
-    
+    uint8_t id = network->tick();
+    byte_to_light(id);
 
   }
+
+
 
   // this chunk just reads in bytes and puts them on the leds
   // byte buffer[1];
