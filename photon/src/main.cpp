@@ -14,7 +14,6 @@ GNU GPL v3
   #include <HardwareSerial.h>
   #include <OneWire.h>
   #include <ArduinoUniqueID.h>
-  #include <rs485/rs485bus.hpp>
 #endif // UNIT_TEST
 
 #ifndef MOTOR_DEPS
@@ -22,18 +21,14 @@ GNU GPL v3
 
 #include <RotaryEncoder.h>
 
-#endif 
+#endif
 
 #include <IndexFeeder.h>
-#include <IndexFeederProtocol.h>
-#include <IndexNetworkLayer.h>
+#include "graviton_io.h"
+#include "lib/graviton/phason.h"
+#include "phason_handler.h"
 
-#include <rs485/rs485bus.hpp>
-#include <rs485/bus_adapters/hardware_serial.h>
-#include <rs485/protocols/photon.h>
-#include <rs485/packetizer.h>
-
-#define BAUD_RATE 9600
+#define BAUD_RATE 14400
 
 //-----
 // Global Variables
@@ -50,22 +45,17 @@ HardwareSerial ser(PA10, PA9);
 // EEPROM
 OneWire oneWire(ONE_WIRE);
 
-// RS485
-HardwareSerialBusIO busIO(&ser);
-RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, DE, _RE);
-PhotonProtocol photon_protocol;
-Packetizer packetizer(bus, photon_protocol);
-
 // Encoder
-RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
+RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03);
 
 // PID
 double Setpoint, Input, Output;
 
 // Feeder Class Instances
 IndexFeeder *feeder;
-IndexFeederProtocol *protocol;
-IndexNetworkLayer *network;
+
+// Phason instance
+PhasonHandler *phason;
 
 #define ALL_LEDS_OFF() byte_to_light(0x00)
 #define ALL_LEDS_ON() byte_to_light(0xff)
@@ -91,8 +81,8 @@ void byte_to_light(byte num){
 
 byte read_floor_address(){
   byte i;
-  byte data[32]; 
-  
+  byte data[32];
+
   // reset the 1-wire line, and return false if no chip detected
   if(!oneWire.reset()){
     addr = 0xFF;
@@ -100,14 +90,14 @@ byte read_floor_address(){
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
-  oneWire.skip(); 
+  oneWire.skip();
 
   // array with the commands to initiate a read, DS28E07 device expect 3 bytes to start a read: command,LSB&MSB adresses
   byte leemem[3] = {
-    0xF0, 
+    0xF0,
     0x00,
     0x00
-  }; 
+  };
 
   // sending those three bytes
   oneWire.write(leemem[0],1);
@@ -142,21 +132,21 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   //-----
 
   byte data[8] = {address, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  
+
   // reset the 1-wire line, and return false if no chip detected
   if(!oneWire.reset()){
     return 0xFF;
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
-  oneWire.skip(); 
+  oneWire.skip();
 
   // array with the commands to initiate a write to the scratchpad, DS28E07 device expect 3 bytes to start a read: command,LSB&MSB adresses
   byte leemem[3] = {
-    0x0F, 
+    0x0F,
     0x00,
     0x00
-  }; 
+  };
 
   // sending those three bytes
   oneWire.write(leemem[0], 1);
@@ -164,7 +154,7 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   oneWire.write(leemem[2], 1);
 
   // Now it's time to actually write the data to the scratchpad
-  for ( i = 0; i < 8; i++) {    
+  for ( i = 0; i < 8; i++) {
     oneWire.write(data[i], 1);
   }
 
@@ -187,14 +177,14 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
-  oneWire.skip(); 
+  oneWire.skip();
 
   // send read scratchpad command
   oneWire.write(0xAA, 1);
 
   //read in TA1, TA2, and E/S bytes, then the 8 bytes of data
-  for ( i = 0; i < 11; i++) {    
-    read_data[i] = oneWire.read(); 
+  for ( i = 0; i < 11; i++) {
+    read_data[i] = oneWire.read();
   }
 
   //read crc
@@ -217,7 +207,7 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
-  oneWire.skip(); 
+  oneWire.skip();
 
   // copy scratchpad command
   oneWire.write(0x55, 1);
@@ -320,9 +310,7 @@ bool select_floor_address(){
 
   // If the network is configured, update the local address
   // to the newly selected address.
-  if (network != NULL) {
-    network->setLocalAddress(addr);
-  }
+  phason->setAddress(addr);
 
   for (int i = 0; i < 16; i++){
     byte_to_light(i);
@@ -354,7 +342,7 @@ void setup() {
   pinMode(LED7, OUTPUT);
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
-  
+
   //init led blink
   ALL_LEDS_ON();
   delay(75);
@@ -377,10 +365,7 @@ void setup() {
     //no eeprom chip detected
     // blink annoyingly until it's solved
     byte_to_light(0x7F);
-  }  
-
-  //Starting rs-485 serial
-  ser.begin(BAUD_RATE);
+  }
 
   // attach interrupts for encoder pins
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_A), checkPosition, CHANGE);
@@ -388,9 +373,10 @@ void setup() {
 
   // Setup Feeder
   feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
-  protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
-  
+
+  // Setup RS-485 & Phason
+  ser.begin(BAUD_RATE);
+  phason = new PhasonHandler(&ser, feeder, addr, UniqueID);
 }
 
 //------
@@ -410,17 +396,17 @@ void loop() {
         select_floor_address();
       }
       else{
-        //we've got a long press, lets reverse 
+        //we've got a long press, lets reverse
         while(!digitalRead(SW1)){
           feeder->peel(50, false);
         }
-        
+
       }
-      
+
     }
     else{
       feeder->feedDistance(40, false);
-      
+
     }
   }
 
@@ -435,34 +421,20 @@ void loop() {
         select_floor_address();
       }
       else{
-        //we've got a long press, lets peel film 
+        //we've got a long press, lets peel film
         while(!digitalRead(SW2)){
           feeder->peel(50, true);
         }
       }
-      
+
     }
     else{
       feeder->feedDistance(40, true);
-    }  
-  }
-  
-  //listening on rs-485 for a command
-  if (network != NULL) {
-
-    uint8_t id = network->tick();
-    byte_to_light(id);
-
+    }
   }
 
-
-
-  // this chunk just reads in bytes and puts them on the leds
-  // byte buffer[1];
-  // while(ser.available()){
-  //   ser.readBytes(buffer, 1);
-  //   byte_to_light(buffer[0]);
-  // }
+  // Process any commands from the host
+  phason->dispatch();
 
   // end main loop
 }
