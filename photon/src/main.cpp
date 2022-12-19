@@ -25,7 +25,6 @@ GNU GPL v3
 
 #include <IndexFeeder.h>
 #include "graviton_io.h"
-#include "lib/graviton/phason.h"
 #include "phason_handler.h"
 
 #define BAUD_RATE 14400

@@ -7,7 +7,7 @@ https://opensource.org/licenses/MIT. */
 #ifndef _PHASON_HANDLER_H
 
 #include "Feeder.h"
-#include "lib/graviton/phason.h"
+#include "graviton/phason.h"
 #include <HardwareSerial.h>
 #include <cstddef>
 #include <cstdint>

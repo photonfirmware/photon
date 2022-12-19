@@ -7,7 +7,7 @@ https://opensource.org/licenses/MIT. */
 #ifndef _GRAVITON_IO_H
 #define _GRAVITON_IO_H
 
-#include "lib/graviton/graviton.h"
+#include "graviton/graviton.h"
 #include <HardwareSerial.h>
 #include <cstddef>
 #include <cstdint>
