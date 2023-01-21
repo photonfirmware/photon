@@ -68,15 +68,15 @@ void IndexFeederProtocol::handle(IndexNetworkLayer *instance, uint8_t *buffer, s
     }
 
     protocol_command_t *command_entry = NULL;
-    uint8_t command_id = buffer[1];
+    uint8_t command_id = buffer[2];
 
     // Check if the command exists and the length is found.
-    if ( !checkLength(command_id, buffer_length - 5) ) {
-        return;
-    }
+    // if ( !checkLength(command_id, buffer_length - 5) ) {
+    //     return;
+    // }
 
-    uint8_t *command_payload = &buffer[1];
-    size_t command_payload_size = buffer_length - 3;
+    uint8_t *command_payload = &buffer[3];
+    size_t command_payload_size = buffer_length - 5;
 
     switch(command_id) {
     case GET_FEEDER_ID:

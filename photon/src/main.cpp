@@ -33,7 +33,7 @@ GNU GPL v3
 #include <rs485/protocols/photon.h>
 #include <rs485/packetizer.h>
 
-#define BAUD_RATE 9600
+#define BAUD_RATE 57600
 
 //-----
 // Global Variables
@@ -52,7 +52,7 @@ OneWire oneWire(ONE_WIRE);
 
 // RS485
 HardwareSerialBusIO busIO(&ser);
-RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, DE, _RE);
+RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, _RE, DE);
 PhotonProtocol photon_protocol;
 Packetizer packetizer(bus, photon_protocol);
 
@@ -340,11 +340,6 @@ bool select_floor_address(){
 //-------
 
 void setup() {
-
-  //setting pin modes
-  pinMode(DE, OUTPUT);
-  pinMode(_RE, OUTPUT);
-
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
@@ -364,10 +359,6 @@ void setup() {
   delay(75);
   ALL_LEDS_OFF();
   delay(75);
-
-  //setting initial pin states
-  digitalWrite(DE, LOW);
-  digitalWrite(_RE, LOW);
 
   // put current floor address on the leds if detected
 
@@ -390,7 +381,6 @@ void setup() {
   feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
   protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
   network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
-  
 }
 
 //------
@@ -449,10 +439,26 @@ void loop() {
   
   //listening on rs-485 for a command
   if (network != NULL) {
-
+    // byte_to_light(bus.available());
+    // delay(1000);
+    bus.fetch();
     uint8_t id = network->tick();
     byte_to_light(id);
+    if(id == 0x0F) {
+      delay(1000);
+    }
+    // byte_to_light(id);
+    // bus.fetch();
 
+    // byte led_status = 0x40;
+    // for(size_t i=0; i < bus.available(); i++) {
+    //   IsPacketResult result = photon_protocol.isPacket(bus, i, bus.available()-1);
+    //   if (result.status == PacketStatus::YES) {
+    //     led_status |= (1 << i);
+    //   }
+    // }
+    // byte_to_light(led_status);
+    // while(true) {}
   }
 
 

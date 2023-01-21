@@ -55,6 +55,14 @@ uint8_t IndexNetworkLayer::tick() {
             buffer[i] = (*_bus)[i];
         }
 
+        // This isn't addressed to us, clear the packet and move on
+        if(buffer[0] != _local_address && buffer[0] != 0xff) {
+            _packetizer->clearPacket();
+            return 0x4F;
+        }
+
+        delay(10);
+
         // handle buffer
         _handler->handle(this, buffer, packet_length);
 
@@ -62,11 +70,11 @@ uint8_t IndexNetworkLayer::tick() {
         _packetizer->clearPacket();
 
         //return first buffer byte for led debugging
-        return buffer[0];
-
+        //return buffer[0];
+        return 0x0F;
     }
 
-    return 0;
+    return 0x4F;
 
     //0201011050
 
@@ -85,37 +93,14 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
     crc.add(destination_address);
     crc.add(buffer_length);
 
-    for(int i = 0;i<buffer_length;i++){
+    for(int i = 0; i<buffer_length;i++){
         crc.add(buffer[i]);
     }
 
     uint16_t checksum = crc.getChecksum();
 
-    crc_array[0] = (uint8_t)((crc >> 8) & 0x0ff);
-    crc_array[1] = (uint8_t)(crc & 0x0ff);
-
-
-    // uint8_t length = buffer_length;
-    // uint8_t crc_array[INDEX_PROTOCOL_CHECKSUM_LENGTH];
-    // uint16_t crc = _CRC16.modbus(&destination_address, 1);
-    // crc = _CRC16.modbus_upd(&length, 1);
-    // crc = _CRC16.modbus_upd(buffer, buffer_length);
-    // crc = htons(crc);
-
-    // crc_array[0] = (uint8_t)((crc >> 8) & 0x0ff);
-    // crc_array[1] = (uint8_t)(crc & 0x0ff);
-
-    // // Transmit The Address
-    // _stream->write(&destination_address, 1);
-    
-    // // Transmit The Length
-    // _stream->write(&length, 1);
-
-    // // Transmit The Data
-    // _stream->write(buffer, buffer_length);
-
-    // // Transmit CRC
-    // _stream->write(crc_array, INDEX_PROTOCOL_CHECKSUM_LENGTH);
+    crc_array[0] = (uint8_t)(crc & 0x0ff);
+    crc_array[1] = (uint8_t)((crc >> 8) & 0x0ff);
 
     // first, find the length of the packet we're sending
     uint8_t send_buffer_length = buffer_length + 4;
