@@ -62,6 +62,9 @@ RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03)
 // PID
 double Setpoint, Input, Output;
 
+// Drive mode toggle
+bool drive_mode = false;
+
 // Feeder Class Instances
 IndexFeeder *feeder;
 IndexFeederProtocol *protocol;
@@ -80,13 +83,26 @@ void checkPosition()
 }
 
 void byte_to_light(byte num){
-  digitalWrite(LED1, !bitRead(num, 0));
-  digitalWrite(LED2, !bitRead(num, 1));
-  digitalWrite(LED3, !bitRead(num, 2));
-  digitalWrite(LED4, !bitRead(num, 3));
-  digitalWrite(LED5, !bitRead(num, 4));
-  digitalWrite(LED6, !bitRead(num, 5));
-  digitalWrite(LED7, !bitRead(num, 6));
+  digitalWrite(LED_R, !bitRead(num, 0));
+  digitalWrite(LED_G, !bitRead(num, 1));
+  digitalWrite(LED_B, !bitRead(num, 2));
+}
+
+void bootAnimation(){
+  for(int i = 0;i<3;i++){
+    digitalWrite(LED_R, LOW);
+    digitalWrite(LED_G, LOW);
+    digitalWrite(LED_B, LOW);
+
+    delay(100);
+
+    digitalWrite(LED_R, HIGH);
+    digitalWrite(LED_G, HIGH);
+    digitalWrite(LED_B, HIGH);
+
+    delay(100);
+  }
+
 }
 
 byte read_floor_address(){
@@ -324,7 +340,7 @@ bool select_floor_address(){
     network->setLocalAddress(addr);
   }
 
-  for (int i = 0; i < 16; i++){
+  for (int i = 0; i < 8; i++){
     byte_to_light(i);
     delay(30);
   }
@@ -340,35 +356,24 @@ bool select_floor_address(){
 //-------
 
 void setup() {
-  pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(LED3, OUTPUT);
-  pinMode(LED4, OUTPUT);
-  pinMode(LED5, OUTPUT);
-  pinMode(LED6, OUTPUT);
-  pinMode(LED7, OUTPUT);
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
   
-  //init led blink
-  ALL_LEDS_ON();
-  delay(75);
-  ALL_LEDS_OFF();
-  delay(75);
-  ALL_LEDS_ON();
-  delay(75);
-  ALL_LEDS_OFF();
-  delay(75);
+  bootAnimation();
 
   // put current floor address on the leds if detected
 
-  byte_to_light(read_floor_address());
+  addr = read_floor_address();
 
-  if(addr == 0xFF){
-    //no eeprom chip detected
-    // blink annoyingly until it's solved
-    byte_to_light(0x7F);
-  }  
+  if(addr == 0xFF){ // not detected, turn red
+    byte_to_light(0x01);
+  }
+  else if (addr == 0x00){ //not programmed, turn blue
+    byte_to_light(0x04);
+  }
 
   //Starting rs-485 serial
   ser.begin(BAUD_RATE);
@@ -397,19 +402,40 @@ void loop() {
 
       if(!digitalRead(SW2)){
         //both are pressed, entering settings mode
-        select_floor_address();
+        byte_to_light(0x04);
+        if(drive_mode){
+          drive_mode = false;
+        }
+        else{
+          drive_mode = true;
+        }
+        while(!digitalRead(SW1) || !digitalRead(SW2)){
+          //do nothing while waiting for debounce
+        }
+        byte_to_light(0x00);
       }
       else{
         //we've got a long press, lets reverse 
         while(!digitalRead(SW1)){
-          feeder->peel(50, false);
+
+          if(drive_mode){
+            feeder->peel(50, false);
+          }
+          else{
+            feeder->driveTape(false);
+          }
         }
+        feeder->brakeDrive(200);
+        feeder->stop();
+        feeder->setEncoderPosition(0);
+        feeder->setMmPosition(0);
         
       }
       
     }
     else{
-      feeder->feedDistance(40, false);
+      //feeder->feedDistance(40, false);
+      feeder->checkLoaded();
       
     }
   }
@@ -422,18 +448,42 @@ void loop() {
 
       if(!digitalRead(SW1)){
         //both are pressed, entering settings mode
-        select_floor_address();
+        byte_to_light(0x04);
+        if(drive_mode){
+          drive_mode = false;
+        }
+        else{
+          drive_mode = true;
+        }
+        while(!digitalRead(SW1) || !digitalRead(SW2)){
+          //do nothing while waiting for debounce
+        }
+        byte_to_light(0x00);
       }
       else{
         //we've got a long press, lets peel film 
         while(!digitalRead(SW2)){
-          feeder->peel(50, true);
+          if(drive_mode){
+            feeder->peel(50, true);
+          }
+          else{feeder->driveTape(true);}
         }
+        feeder->brakeDrive(200);
+        feeder->stop();
+        feeder->setEncoderPosition(0);
+        feeder->setMmPosition(0);
       }
       
     }
     else{
-      feeder->feedDistance(40, true);
+      byte_to_light(0x02);
+      if(feeder->feedDistance(40, true) == Feeder::FeedResult::SUCCESS){
+        byte_to_light(0x00);
+      }
+      else{
+        byte_to_light(0x01);
+      }
+      
     }  
   }
   
@@ -443,10 +493,12 @@ void loop() {
     // delay(1000);
     bus.fetch();
     uint8_t id = network->tick();
-    byte_to_light(id);
-    if(id == 0x0F) {
-      delay(1000);
-    }
+    //byte_to_light(id);
+
+
+    // if(id == 0x0F) {
+    //   delay(1000);
+    // }
     // byte_to_light(id);
     // bus.fetch();
 

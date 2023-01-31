@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "IndexFeeder.h"
+#include "define.h"
 
 #define TENTH_MM_PER_PIP 40
 #define TIMEOUT_PER_PIP
@@ -10,9 +11,12 @@
 // one full rotation of the output shaft is 14*1030 = 14420 ticks
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
-#define TICKS_PER_TENTH_MM 11.265625
-#define TENSION_TIME_PER_TENTH_MM 17
-#define TIMEOUT_TIME_PER_TENTH_MM 35
+
+// ok it seems i have some drift with the number calculated above
+// adjusting based on our drift (2.5 tenths over the course of 5600 tenths), the new rate should be 11.27065654
+#define TICKS_PER_TENTH_MM 11.27065654
+#define TENSION_TIME_PER_TENTH_MM 20
+#define TIMEOUT_TIME_PER_TENTH_MM 30
 
 #define BACKLASH_COMP_TENTH_MM 10
 #define BACKWARD_FILM_SLACK_TIMEOUT 200
@@ -64,6 +68,128 @@ Feeder::FeedResult IndexFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
     return Feeder::FeedResult::SUCCESS;
 }
 
+void IndexFeeder::brakeDrive(uint16_t brake_time){
+    //brings both drive pins high
+    analogWrite(_drive1_pin, 255);
+    analogWrite(_drive2_pin, 255);
+
+    delay(brake_time);
+
+    stop();
+
+}
+
+/*  checkLoaded()
+    The checkLoaded() function checks to see what's loaded in the feeder, and sets PID components appropriately.
+    This gets run on first movement command after boot, after quick move, or after the protocol requests it.
+
+*/
+bool IndexFeeder::checkLoaded() {
+
+    //takes up any backlash slack, ensures any forward movement is tape movement
+    analogWrite(_drive1_pin, 0);
+    analogWrite(_drive2_pin, 250);
+    delay(2);
+
+    analogWrite(_drive1_pin, 0);
+    analogWrite(_drive2_pin, 20);
+    delay(500);
+
+    stop();
+
+    // find starting threshold of movement
+    int errorThreshold = 3;
+    int movedAt = 256;
+    signed long startingTick, currentTick;
+
+    startingTick = _encoder->getPosition();
+
+    for(int movementIndex = 20; movementIndex<255; movementIndex=movementIndex + 5){
+        
+        analogWrite(_drive1_pin, 0);
+        analogWrite(_drive2_pin, movementIndex);
+
+        delay(75);
+
+        currentTick = _encoder->getPosition();
+        
+        if(abs(startingTick - currentTick) > errorThreshold){
+            movedAt = movementIndex;
+            break;
+        }
+    }
+
+    stop();
+  
+    // set pid components based on this
+
+    //Empty should be red
+    // 0402 is consistently creen
+    // 0603 is between green and blue
+    // 0805 is 
+
+    // Green
+    if(movedAt < 48){               // 0402 tape with almost no resistance
+        digitalWrite(LED_R, HIGH);
+        digitalWrite(LED_G, LOW);
+        digitalWrite(LED_B, HIGH);
+
+        // Setting PID
+        _Kp=1;
+        _Ki=0;
+        _Kd=2;
+
+    }
+
+    // Yellow
+    else if(movedAt < 180){         // 0603, a bit thicker with a bit of resistance
+        digitalWrite(LED_R, LOW);
+        digitalWrite(LED_G, LOW);
+        digitalWrite(LED_B, HIGH);
+
+        // Setting PID
+        _Kp=0.5;
+        _Ki=0.01;
+        _Kd=0.2;
+
+    }
+
+    // PINK
+    else if(movedAt < 256){         // Thicc Boi tape
+        digitalWrite(LED_R, LOW);
+        digitalWrite(LED_G, HIGH);
+        digitalWrite(LED_B, LOW);
+
+        // Setting PID
+        _Kp=1;
+        _Ki=0.01;
+        _Kd=10;
+
+    }
+
+    // RED
+    else{                           // Full tilt didn't move it, it's gonna need
+        digitalWrite(LED_R, LOW);
+        digitalWrite(LED_G, HIGH);
+        digitalWrite(LED_B, HIGH);
+
+        // Setting PID
+        _Kp=1;
+        _Ki=0.1;
+        _Kd=75;
+
+    }
+
+    delay(250);
+
+    digitalWrite(LED_R, HIGH);
+    digitalWrite(LED_G, HIGH);
+    digitalWrite(LED_B, HIGH);
+
+    return true;
+
+}
+
 /* moveInternal()
 *   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
 *   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
@@ -76,7 +202,7 @@ Feeder::FeedResult IndexFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 *
 */
 bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
-    signed long goal_mm, timeout, signed_mm;
+    signed long goal_mm, timeout, signed_mm, current_tick, output;
 
     timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
 
@@ -96,26 +222,50 @@ bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
 
     bool ret = false;
 
-    // float Kp=200, Ki=5, Kd=0, Hz=60;
-    float Kp=2, Ki=5, Kd=0.2, Hz=60;
+    // float Kp=0.9, Ki=0.4, Kd=20, Hz=120;
+    // float Kp=0.9, Ki=0.3, Kd=20, Hz=120;
+
+// works well for 0402 tape at 4mm movements and 2mm movements
+// scaling set to 200-255
+    // float Kp=0.8, Ki=0.3, Kd=100, Hz=120;
+
+// works 0402 at 2mm movements
+    // float Kp=0.9, Ki=0.1, Kd=75, Hz=120;
+
+// works well for 0805 tape at 2mm and 4mm movements
+// assumes no film tension with a bit of slack peel release, and static friction comp
+    // float Kp=0.9, Ki=0.5, Kd=50, Hz=120;
+
+    //float Kp=0.9, Ki=0.1, Kd=75, Hz=120;
+
+
     int output_bits = 8;
     bool output_signed = true;
-    FastPID pid(Kp, Ki, Kd, Hz, output_bits, output_signed);
+    FastPID pid(_Kp, _Ki, _Kd, _Hz, output_bits, output_signed);
     pid.setOutputRange(-255, 255);
 
-    int ss_monitor[5] = {100, 100, 100, 100, 100};
+    int ss_monitor[15] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     int ss_index = 0;
+    bool ss;
+    bool monatonic = true;
+
 
     while(millis() < start_time + timeout){
 
-        signed long current_tick = _encoder->getPosition();        
+        current_tick = _encoder->getPosition();   
+
+        // check to see if we overshoot outside of the bounds of steady state threshold
+        if((current_tick > (goal_tick + SS_THRESHOLD) && forward) || (current_tick < (goal_tick - SS_THRESHOLD) && !forward)){
+            ret = false;
+            break;
+        }     
 
         // updating steady state array with this iteration's error
         signed long error = fabs(goal_tick - current_tick);
         ss_monitor[ss_index] = error;
 
         // increment steady state array's counter
-        if(ss_index >= 4){
+        if(ss_index >= 14){
             ss_index = 0;
         }
         else{
@@ -123,8 +273,8 @@ bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
         }
 
         // setting ss to false if any of the values in ss_monitor are over the threshold
-        bool ss = true;
-        for(int i = 0; i<5; i++){
+        ss = true;
+        for(int i = 0; i<14; i++){
             if(ss_monitor[i] > SS_THRESHOLD){
                 ss = false;
                 break;
@@ -141,39 +291,59 @@ bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
         // if we havent, continue to drive the PID
         else{
             // PID implementation
-            signed long output = pid.step(goal_tick, current_tick);
+            output = pid.step(goal_tick, current_tick);
 
-            if(output > 0){
+            bool forward = true;
+            if(output < 0){
+                forward = false;
+            }
+
+            output = map(abs(output), 0, 255, 70, 255);
+
+            if(output < 71){
+                output = 0;
+            }
+
+            if(forward){
                 analogWrite(_drive1_pin, 0);
                 analogWrite(_drive2_pin, output);
             }
-            else {
-                output = abs(output);
+            else{
                 analogWrite(_drive1_pin, output);
                 analogWrite(_drive2_pin, 0);
             }
         }
     }
 
-    // be sure to turn off motors
+    // brake to kill any coast
+    brakeDrive(100);
+    // turn off all motors
     stop();
 
     // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
     // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-    if(floor(goal_tick_precise) == goal_tick_precise){
-        _position = 0;
-        _encoder->setPosition(0);
-    }
+    // if(floor(goal_tick_precise) == goal_tick_precise){
+    //     _position = 0;
+    //     _encoder->setPosition(0);
+    // }
 
     return ret;
+}
+
+void IndexFeeder::setEncoderPosition(uint32_t position){
+    _encoder->setPosition(position);
+}
+
+void IndexFeeder::setMmPosition(uint16_t position){
+    _position = position;
 }
 
 bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
     if(dir){
         //peel film
         digitalWrite(PA8, LOW);
-        analogWrite(_peel1_pin, 0);
-        analogWrite(_peel2_pin, 255);
+        analogWrite(_peel1_pin, 255);
+        analogWrite(_peel2_pin, 0);
         delay(peel_time);
         analogWrite(_peel1_pin, 0);
         analogWrite(_peel2_pin, 0);
@@ -183,8 +353,8 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
     else{
         //peel film
         digitalWrite(PA8, LOW);
-        analogWrite(_peel1_pin, 255);
-        analogWrite(_peel2_pin, 0);
+        analogWrite(_peel1_pin, 0);
+        analogWrite(_peel2_pin, 255);
         delay(peel_time);
         analogWrite(_peel1_pin, 0);
         analogWrite(_peel2_pin, 0);
@@ -193,31 +363,50 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
     return true;
 }
 
+void IndexFeeder::driveTape(bool forward){
+    if(forward){
+        analogWrite(_drive1_pin, 0);
+        analogWrite(_drive2_pin, 255);
+    }
+    else{
+        analogWrite(_drive1_pin, 255);
+        analogWrite(_drive2_pin, 0);
+    }
+}
+
 bool IndexFeeder::moveForward(uint16_t tenths_mm) {
     // First, ensure everything is stopped
     stop();
     
-    //turn on peel motor
+    // peel film based on how much we're moving
     signed long peel_time = tenths_mm * TENSION_TIME_PER_TENTH_MM;
+
     peel(peel_time, true);
 
-    //start timer before moving tape
-    unsigned long start = millis();
+    // 50ms delay to not get crazy back emf
+    delay(50);
+
+    // unpeel just a bit to provide slack, and let it coast for a sec
+    peel(100, false);
+    delay(50);
+
+    int retry_index = 0;
     
-    //move tape
-    moveInternal(true, tenths_mm);
-
-    //calculate how long we drove tape for
-    unsigned long drive_time = millis() - start;
-
-    // //peel for any remaining time needed, if any
-    // signed long peel_time = (tenths_mm * TENSION_TIME_PER_TENTH_MM) - drive_time;
-    // if(peel_time < 0){
-    //     peel_time = 0;
-    // }
-    // peel(peel_time, true);
-
-    return true;
+    if(moveInternal(true, tenths_mm)){ //if moving tape succeeds
+        return true;
+    }
+    else{ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+        //checkLoaded();
+        for(int retry_index = 0; retry_index < _retry_limit; retry_index++){
+            driveTape(false);
+            delay(50);
+            stop();
+            if(moveInternal(true, tenths_mm)){
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool IndexFeeder::moveBackward(uint16_t tenths_mm) {

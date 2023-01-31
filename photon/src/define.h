@@ -1,13 +1,10 @@
 #define DE   PA12
 #define _RE  PA11
 
-#define LED1 PA7   
-#define LED2 PA6
-#define LED3 PA4
-#define LED4 PA3
-#define LED5 PA2   
-#define LED6 PA1
-#define LED7 PA0
+#define LED_R PA7   
+#define LED_G PA6
+#define LED_B PA4
+
 
 #define SW1 PB1
 #define SW2 PB0
@@ -22,7 +19,7 @@
 #define DRIVE_ENC_A PB6
 #define DRIVE_ENC_B PB7
 
-#define LONG_PRESS_DELAY 300
+#define LONG_PRESS_DELAY 500
 
 #define RS485_BUS_BUFFER_SIZE 64
 
