@@ -386,6 +386,24 @@ void setup() {
   feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
   protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
   network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
+
+  feeder->checkLoaded();
+}
+
+void lifetime(){
+  // lifetime testing loop
+  unsigned long counter = millis();
+  int interval = 3000;
+  while(true){
+    if(millis() > counter + interval){
+      //reset counter to millis()
+      counter = millis();
+      //move
+      feeder->feedDistance(40, true);
+      feeder->setEncoderPosition(0);
+      feeder->setMmPosition(0);
+    }
+  }
 }
 
 //------
@@ -393,7 +411,6 @@ void setup() {
 //------
 
 void loop() {
-
   // Checking SW1 status to go backward, or initiate settings mode
   if(!digitalRead(SW1)){
     delay(LONG_PRESS_DELAY);
@@ -435,7 +452,8 @@ void loop() {
     }
     else{
       //feeder->feedDistance(40, false);
-      feeder->checkLoaded();
+      //feeder->checkLoaded();
+      lifetime();
       
     }
   }

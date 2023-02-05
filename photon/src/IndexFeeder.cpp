@@ -16,7 +16,7 @@
 // adjusting based on our drift (2.5 tenths over the course of 5600 tenths), the new rate should be 11.27065654
 #define TICKS_PER_TENTH_MM 11.27065654
 #define TENSION_TIME_PER_TENTH_MM 20
-#define TIMEOUT_TIME_PER_TENTH_MM 30
+#define TIMEOUT_TIME_PER_TENTH_MM 25
 
 #define BACKLASH_COMP_TENTH_MM 10
 #define BACKWARD_FILM_SLACK_TIMEOUT 200
@@ -322,10 +322,10 @@ bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
 
     // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
     // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-    // if(floor(goal_tick_precise) == goal_tick_precise){
-    //     _position = 0;
-    //     _encoder->setPosition(0);
-    // }
+    if(floor(goal_tick_precise) == goal_tick_precise){
+        setEncoderPosition(0);
+        setMmPosition(0);
+    }
 
     return ret;
 }
