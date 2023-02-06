@@ -1,7 +1,6 @@
 #ifndef _PHOTON_FEEDER_H
 #define _PHOTON_FEEDER_H
 
-#include "Feeder.h"
 #include <functional>
 
 #ifndef MOTOR_DEPS
@@ -14,9 +13,15 @@
 
 
 
-class PhotonFeeder : public Feeder {
-
+class PhotonFeeder {
     public:
+        enum FeedResult {
+            SUCCESS,
+            INVALID_LENGTH,
+            MOTOR_FAULT,
+            UNKNOWN_ERROR
+        };
+
         PhotonFeeder(
             uint8_t drive1_pin,
             uint8_t drive2_pin,
@@ -28,7 +33,7 @@ class PhotonFeeder : public Feeder {
             RotaryEncoder* encoder,
             OneWire* oneWire
         );
-        Feeder::FeedResult feedDistance(uint16_t tenths_mm, bool forward) override;
+        FeedResult feedDistance(uint16_t tenths_mm, bool forward);
         bool peel(uint32_t peel_time, bool dir);  // In main
         void driveTape(bool forward);  // In main
         void brakeDrive(uint16_t brake_time);  // In main

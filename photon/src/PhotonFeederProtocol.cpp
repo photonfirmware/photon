@@ -54,7 +54,7 @@ static const uint8_t zero_uuid[UUID_LENGTH] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 
 #define UNINITIALIZED_FEEDER_RESPONSE_LENGTH (2 + UUID_LENGTH)
 
-PhotonFeederProtocol::PhotonFeederProtocol(Feeder *feeder, const uint8_t *uuid, size_t uuid_length) : _feeder(feeder), _initialized(false) {
+PhotonFeederProtocol::PhotonFeederProtocol(PhotonFeeder *feeder, const uint8_t *uuid, size_t uuid_length) : _feeder(feeder), _initialized(false) {
     memset(_uuid, 0, UUID_LENGTH);
     memcpy(_uuid, uuid, (uuid_length < UUID_LENGTH) ? uuid_length : UUID_LENGTH);
 }
@@ -213,11 +213,11 @@ void PhotonFeederProtocol::move(PhotonNetworkLayer *instance, uint8_t distance, 
         return;
     }
 
-    Feeder::FeedResult result = _feeder->feedDistance(distance, forward);
+    PhotonFeeder::FeedResult result = _feeder->feedDistance(distance, forward);
 
     switch (result)
     {
-    case Feeder::FeedResult::SUCCESS: 
+    case PhotonFeeder::FeedResult::SUCCESS: 
     {
         uint8_t response[MOVE_FEED_RESPONSE_LENGTH];
         response[0] = instance->getLocalAddress();
@@ -226,8 +226,8 @@ void PhotonFeederProtocol::move(PhotonNetworkLayer *instance, uint8_t distance, 
     }
         break;
     
-    case Feeder::FeedResult::INVALID_LENGTH:    // For Now Handle Invalid Length & Motor Fault The Same
-    case Feeder::FeedResult::MOTOR_FAULT:
+    case PhotonFeeder::FeedResult::INVALID_LENGTH:    // For Now Handle Invalid Length & Motor Fault The Same
+    case PhotonFeeder::FeedResult::MOTOR_FAULT:
     {
         uint8_t response[MOVE_FEED_RESPONSE_LENGTH];
         response[0] = instance->getLocalAddress();
@@ -236,7 +236,7 @@ void PhotonFeederProtocol::move(PhotonNetworkLayer *instance, uint8_t distance, 
     }
         break;
 
-    case Feeder::FeedResult::UNKNOWN_ERROR:
+    case PhotonFeeder::FeedResult::UNKNOWN_ERROR:
         //TODO: Send The Appropriate Response
         break;
 

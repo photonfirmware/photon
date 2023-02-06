@@ -2,20 +2,20 @@
 #define _PHOTON_FEEDER_PROTOCOL_H
 
 #include "PhotonPacketHandler.h"
-#include "Feeder.h"
+#include "PhotonFeeder.h"
 
 #define UUID_LENGTH 12
 
 class PhotonFeederProtocol : public PhotonPacketHandler {
 
     public:
-        PhotonFeederProtocol(Feeder *feeder, const uint8_t *uuid, size_t uuid_length);
+        PhotonFeederProtocol(PhotonFeeder *feeder, const uint8_t *uuid, size_t uuid_length);
         void handle(PhotonNetworkLayer *instance, uint8_t *buffer, size_t buffer_length) override;
         bool isInitialized();
     
     private:
 
-        Feeder *_feeder;
+        PhotonFeeder *_feeder;
         uint8_t _uuid[UUID_LENGTH];
         bool _initialized;
 

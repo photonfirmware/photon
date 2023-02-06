@@ -63,7 +63,7 @@ PhotonFeeder::PhotonFeeder(
     pinMode(_led_blue, OUTPUT);
 }
 
-Feeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
+PhotonFeeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     // if (abs(tenths_mm) % TENTH_MM_PER_PIP != 0) {
     //     // The Opulo Photon Feeder has only been tested and calibrated for moves of 4mm (One Pip) so far.
@@ -77,7 +77,7 @@ Feeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) 
     }
 
 
-    return Feeder::FeedResult::SUCCESS;
+    return PhotonFeeder::FeedResult::SUCCESS;
 }
 
 void PhotonFeeder::brakeDrive(uint16_t brake_time){

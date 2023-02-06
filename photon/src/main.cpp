@@ -231,7 +231,7 @@ void loop() {
     }
     else{
       feeder->set_rgb(false, true, false);
-      if(feeder->feedDistance(40, true) == Feeder::FeedResult::SUCCESS){
+      if(feeder->feedDistance(40, true) == PhotonFeeder::FeedResult::SUCCESS){
         feeder->set_rgb(false, false, false);
       }
       else{
