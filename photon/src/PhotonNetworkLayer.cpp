@@ -1,13 +1,11 @@
 #include "define.h"
 
 #include "PhotonNetworkLayer.h"
+#include "FeederFloor.h"
 #include <Arduino.h>
 #include <cstring>
 #include <cstdio>
 
-#include <rs485/rs485bus.hpp>
-#include <rs485/packetizer.h>
-#include <rs485/protocols/checksums/modbus_rtu.h>
 
 #ifndef NATIVE
 #include "util.h"
@@ -17,16 +15,25 @@
 #define PHOTON_INCOMING_BUFFER_SIZE 16
 #define RS485_CONTROL_DELAY 10
 
-PhotonNetworkLayer::PhotonNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, PhotonPacketHandler* handler) :  _packetizer(packetizer), _bus(bus), _local_address(address), _handler(handler), _timeout_period(PHOTON_PROTOCOL_DEFAULT_TIMEOUT_MS) {
-    reset();
-}
+PhotonNetworkLayer::PhotonNetworkLayer(
+    RS485Bus<RS485_BUS_BUFFER_SIZE>* bus,
+    Packetizer* packetizer,
+    FilterByValue* addressFilter,
+    FeederFloor* feederFloor,
+    PhotonPacketHandler* handler) :
+    _bus(bus),
+    _packetizer(packetizer),
+    _addressFilter(addressFilter),
+    _feederFloor(feederFloor),
+    _handler(handler),
+    _local_address(0xFF) {
+    _local_address = _feederFloor->read_floor_address();
 
-void PhotonNetworkLayer::setTimeoutPeriod(uint32_t timeout) {
-    _timeout_period = timeout;
-}
+    _packetizer->setFilter(*_addressFilter);
+    _addressFilter->postValues.allow(0xFF);
 
-uint32_t PhotonNetworkLayer::getTimeoutPeriod() {
-    return _timeout_period;
+    // If floor address isn't set, _local_address is 0xFF and this function does nothing
+    _addressFilter->postValues.allow(_local_address);
 }
 
 void PhotonNetworkLayer::setLocalAddress(uint8_t address) {
@@ -37,47 +44,33 @@ uint8_t PhotonNetworkLayer::getLocalAddress() {
     return _local_address;
 }
 
-uint8_t PhotonNetworkLayer::tick() {
+void PhotonNetworkLayer::tick() {
+  // triggers if the packetizer detects that it has a packet
+  if (! _packetizer->hasPacket()){
+    return;
+  }
 
-    // triggers if the packetizer detects that it has a packet
-    if (_packetizer->hasPacket()){
-        uint8_t packet_length = _packetizer->packetLength();
+  uint8_t packet_length = _packetizer->packetLength();
 
-        if(packet_length == 0){
-            return 0x00;
-        }
+  if(packet_length == 0){
+    return;
+  }
 
-        // make buffer of that length
-        uint8_t buffer[packet_length];
+  // make buffer of that length
+  uint8_t buffer[packet_length];
 
-        // iterate through all bytes in RS485 object and plop them in the buffer
-        for(int i = 0; i<packet_length; i++){
-            buffer[i] = (*_bus)[i];
-        }
+  // iterate through all bytes in RS485 object and plop them in the buffer
+  for(int i = 0; i<packet_length; i++){
+    buffer[i] = (*_bus)[i];
+  }
 
-        // This isn't addressed to us, clear the packet and move on
-        if(buffer[0] != _local_address && buffer[0] != 0xff) {
-            _packetizer->clearPacket();
-            return 0x4F;
-        }
+  delay(10);
 
-        delay(10);
+  // handle buffer
+  _handler->handle(this, buffer, packet_length);
 
-        // handle buffer
-        _handler->handle(this, buffer, packet_length);
-
-        // clear the packet
-        _packetizer->clearPacket();
-
-        //return first buffer byte for led debugging
-        //return buffer[0];
-        return 0x0F;
-    }
-
-    return 0x4F;
-
-    //0201011050
-
+  // clear the packet
+  _packetizer->clearPacket();
 }
 
 bool PhotonNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length) {
@@ -121,14 +114,4 @@ bool PhotonNetworkLayer::transmitPacket(uint8_t destination_address, const uint8
     _packetizer->writePacket(_send_buffer, send_buffer_length);
 
     return true;
-}
-
-void PhotonNetworkLayer::reset() {
-    // Reset The State Machine
-    _address = 0;
-    _length = 0;
-    memset(_payload, 0, PHOTON_NETWORK_MAX_PDU);
-    memset(_rx_checksum, 0, PHOTON_PROTOCOL_CHECKSUM_LENGTH);
-    _last_byte_time = 0;
-
 }

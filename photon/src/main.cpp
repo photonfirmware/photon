@@ -24,12 +24,14 @@ GNU GPL v3
 
 #endif 
 
+#include "FeederFloor.h"
 #include "PhotonFeeder.h"
 #include "PhotonFeederProtocol.h"
 #include "PhotonNetworkLayer.h"
 
 #include <rs485/rs485bus.hpp>
 #include <rs485/bus_adapters/hardware_serial.h>
+#include <rs485/filters/filter_by_value.h>
 #include <rs485/protocols/photon.h>
 #include <rs485/packetizer.h>
 
@@ -47,12 +49,14 @@ HardwareSerial ser(PA10, PA9);
 
 // EEPROM
 OneWire oneWire(ONE_WIRE);
+FeederFloor feederFloor(&oneWire);
 
 // RS485
 HardwareSerialBusIO busIO(&ser);
 RS485Bus<RS485_BUS_BUFFER_SIZE> bus(busIO, _RE, DE);
 PhotonProtocol photon_protocol;
 Packetizer packetizer(bus, photon_protocol);
+FilterByValue addressFilter(0);
 
 // Encoder
 RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
@@ -99,9 +103,9 @@ void setup() {
   pinMode(SW2, INPUT_PULLUP);
 
   // Setup Feeder
-  feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, LED_R, LED_G, LED_B, &encoder, &oneWire);
+  feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, LED_R, LED_G, LED_B, &encoder);
   protocol = new PhotonFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  network = new PhotonNetworkLayer(&packetizer, &bus, 0xFF, protocol);
+  network = new PhotonNetworkLayer(&bus, &packetizer, &addressFilter, &feederFloor, protocol);
   
   bootAnimation();
 
@@ -142,11 +146,7 @@ void lifetime(){
   }
 }
 
-//------
-//  MAIN CONTROL LOOP
-//------
-
-void loop() {
+inline void keyPressedOne() {
   // Checking SW1 status to go backward, or initiate settings mode
   if(!digitalRead(SW1)){
     delay(LONG_PRESS_DELAY);
@@ -193,7 +193,9 @@ void loop() {
       
     }
   }
+}
 
+inline void keyPressedTwo() {
   // Checking SW2 status to go forward
   if(!digitalRead(SW2)){
     delay(LONG_PRESS_DELAY);
@@ -240,41 +242,17 @@ void loop() {
       
     }  
   }
-  
-  //listening on rs-485 for a command
-  if (network != NULL) {
-    // byte_to_light(bus.available());
-    // delay(1000);
-    bus.fetch();
-    uint8_t id = network->tick();
-    //byte_to_light(id);
+}
 
+inline void checkForRS485Packet() {
+  network->tick();
+}
 
-    // if(id == 0x0F) {
-    //   delay(1000);
-    // }
-    // byte_to_light(id);
-    // bus.fetch();
-
-    // byte led_status = 0x40;
-    // for(size_t i=0; i < bus.available(); i++) {
-    //   IsPacketResult result = photon_protocol.isPacket(bus, i, bus.available()-1);
-    //   if (result.status == PacketStatus::YES) {
-    //     led_status |= (1 << i);
-    //   }
-    // }
-    // byte_to_light(led_status);
-    // while(true) {}
-  }
-
-
-
-  // this chunk just reads in bytes and puts them on the leds
-  // byte buffer[1];
-  // while(ser.available()){
-  //   ser.readBytes(buffer, 1);
-  //   byte_to_light(buffer[0]);
-  // }
-
-  // end main loop
+//------
+//  MAIN CONTROL LOOP
+//------
+void loop() {
+  keyPressedOne();
+  keyPressedTwo();
+  checkForRS485Packet();
 }
