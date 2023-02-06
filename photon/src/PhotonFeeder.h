@@ -8,8 +8,9 @@
     #define MOTOR_DEPS
     #include <RotaryEncoder.h>
     #include <FastPID.h>
+#endif
 
-#endif 
+#include <OneWire.h>
 
 
 
@@ -24,7 +25,8 @@ class PhotonFeeder : public Feeder {
             uint8_t led_red,
             uint8_t led_green,
             uint8_t led_blue,
-            RotaryEncoder* encoder
+            RotaryEncoder* encoder,
+            OneWire* oneWire
         );
         Feeder::FeedResult feedDistance(uint16_t tenths_mm, bool forward) override;
         bool peel(uint32_t peel_time, bool dir);  // In main
@@ -36,6 +38,9 @@ class PhotonFeeder : public Feeder {
         void setEncoderPosition(uint32_t position);  // In Main, never set to a non-zero number
 
         void set_rgb(bool red, bool green, bool blue);
+
+        uint8_t read_floor_address();
+        bool write_floor_address(uint8_t address);
         
     private:
         uint8_t _drive1_pin;
@@ -53,6 +58,7 @@ class PhotonFeeder : public Feeder {
         signed long _position;
 
         RotaryEncoder* _encoder;
+        OneWire* _oneWire;
 
         float _Kp=0.5; // higher value, stronger response
         float _Ki=0.01; // higher value, stronger response (divided by Hz)

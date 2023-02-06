@@ -39,7 +39,8 @@ PhotonFeeder::PhotonFeeder(
             uint8_t led_red,
             uint8_t led_green,
             uint8_t led_blue,
-            RotaryEncoder* encoder
+            RotaryEncoder* encoder,
+            OneWire* oneWire
         ) :
     _drive1_pin(drive1_pin),
     _drive2_pin(drive2_pin),
@@ -49,7 +50,8 @@ PhotonFeeder::PhotonFeeder(
     _led_green(led_green),
     _led_blue(led_blue),
     _position(0),
-    _encoder(encoder) {
+    _encoder(encoder),
+    _oneWire(oneWire) {
 
     pinMode(_drive1_pin, OUTPUT);
     pinMode(_drive2_pin, OUTPUT);
@@ -73,7 +75,7 @@ Feeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) 
     if (!success) {
         return FeedResult::MOTOR_FAULT;
     }
-    
+
 
     return Feeder::FeedResult::SUCCESS;
 }
@@ -115,14 +117,14 @@ bool PhotonFeeder::checkLoaded() {
     startingTick = _encoder->getPosition();
 
     for(int movementIndex = 20; movementIndex<255; movementIndex=movementIndex + 5){
-        
+
         analogWrite(_drive1_pin, 0);
         analogWrite(_drive2_pin, movementIndex);
 
         delay(75);
 
         currentTick = _encoder->getPosition();
-        
+
         if(abs(startingTick - currentTick) > errorThreshold){
             movedAt = movementIndex;
             break;
@@ -130,13 +132,13 @@ bool PhotonFeeder::checkLoaded() {
     }
 
     stop();
-  
+
     // set pid components based on this
 
     //Empty should be red
     // 0402 is consistently creen
     // 0603 is between green and blue
-    // 0805 is 
+    // 0805 is
 
     // Green
     if(movedAt < 48){               // 0402 tape with almost no resistance
@@ -207,7 +209,7 @@ bool PhotonFeeder::checkLoaded() {
 *   result in a signficiant amount of accrued error.
 *
 *   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the PID loop. We do this by
-*   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to 
+*   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to
 *   absolute positioning vs. relative positioning in Marlin. Every mm->tick calculation needs to be done based on the initial 0 tick position.
 *
 */
@@ -262,13 +264,13 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
 
     while(millis() < start_time + timeout){
 
-        current_tick = _encoder->getPosition();   
+        current_tick = _encoder->getPosition();
 
         // check to see if we overshoot outside of the bounds of steady state threshold
         if((current_tick > (goal_tick + SS_THRESHOLD) && forward) || (current_tick < (goal_tick - SS_THRESHOLD) && !forward)){
             ret = false;
             break;
-        }     
+        }
 
         // updating steady state array with this iteration's error
         signed long error = fabs(goal_tick - current_tick);
@@ -387,7 +389,7 @@ void PhotonFeeder::driveTape(bool forward){
 bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // First, ensure everything is stopped
     stop();
-    
+
     // peel film based on how much we're moving
     signed long peel_time = tenths_mm * TENSION_TIME_PER_TENTH_MM;
 
@@ -401,7 +403,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     delay(50);
 
     int retry_index = 0;
-    
+
     if(moveInternal(true, tenths_mm)){ //if moving tape succeeds
         return true;
     }
@@ -451,4 +453,160 @@ void PhotonFeeder::set_rgb(bool red, bool green, bool blue) {
   digitalWrite(LED_R, ! red);
   digitalWrite(LED_G, ! green);
   digitalWrite(LED_B, ! blue);
+}
+
+uint8_t PhotonFeeder::read_floor_address() {
+  // reset the 1-wire line, and return false if no chip detected
+  if(!_oneWire->reset()) {
+    return 0xFF;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  _oneWire->skip();
+
+  // array with the commands to initiate a read, DS28E07 device expect 3 bytes to start a read: command,LSB&MSB adresses
+  uint8_t leemem[3] = {
+    0xF0,
+    0x00,
+    0x00
+  };
+
+  // sending those three bytes
+  _oneWire->write_bytes(leemem, sizeof(leemem), 1);
+
+  uint8_t addr = _oneWire->read();  // Start by reading our address byte
+
+  // Read the next 31 bytes, discarding their value. Each page is 32 bytes so we need 32 read commands
+  for (uint8_t i = 0; i < 31; i++) {
+    _oneWire->read();
+  }
+
+  // return the first byte from returned data
+  return addr;
+}
+
+bool PhotonFeeder::write_floor_address(uint8_t address) {
+/*
+    wriıte_floor_address()
+      success returns programmed address byte
+      failure returns 0xFF
+
+This function takes a byte as in input, and flashes it to address 0x0000 in the eeprom (where the floor ID is stored).
+The DS28E07 requires a million and one steps to make this happen. Reference the datasheet for details:
+https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
+*/
+
+
+  byte i;                         // This is for the for loops
+  //-----
+  // Write To Scratchpad
+  //-----
+
+  byte data[8] = {address, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  // reset the 1-wire line, and return false if no chip detected
+  if(!_oneWire->reset()){
+    return 0xFF;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  _oneWire->skip();
+
+  // array with the commands to initiate a write to the scratchpad, DS28E07 device expect 3 bytes to start a read: command,LSB&MSB adresses
+  byte leemem[3] = {
+    0x0F,
+    0x00,
+    0x00
+  };
+
+  // sending those three bytes
+  _oneWire->write_bytes(leemem, sizeof(leemem), 1);
+
+  // Now it's time to actually write the data to the scratchpad
+  for ( i = 0; i < 8; i++) {
+    _oneWire->write(data[i], 1);
+  }
+
+  // read back the CRC
+  byte ccrc = _oneWire->read();
+
+  //-----
+  // Read Scratchpad
+  //-----
+
+  // byte for the ccrc the eeprom will send us
+  byte scratchpad_ccrc;
+
+  // reset the 1-wire line, and return failure if no chip detected
+  if(!_oneWire->reset()){
+    return false;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  _oneWire->skip();
+
+  // send read scratchpad command
+  _oneWire->write(0xAA, 1);
+
+  // array for the data we'll read back
+  byte read_data[11];
+
+  //read in TA1, TA2, and E/S bytes, then the 8 bytes of data
+  for ( i = 0; i < sizeof(read_data); i++) {
+    read_data[i] = _oneWire->read();
+  }
+
+  //read crc
+  scratchpad_ccrc = _oneWire->read();
+
+  byte ccrc_calc = OneWire::crc8(read_data, sizeof(read_data));
+
+  // TODO need to be checking CCRC. never returns true, even when data is identical.
+  // if(scratchpad_ccrc != ccrc_calc){
+  //   // do nothing
+  // }
+
+  //-----
+  // Copy Scratchpad to Memory
+  //-----
+
+  // reset the 1-wire line, and return false if no chip detected
+  if(!_oneWire->reset()){
+    return false;
+  }
+
+  // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus
+  _oneWire->skip();
+
+  // copy scratchpad command
+  _oneWire->write(0x55, 1);
+
+  // sending auth bytes from scratchpad read, which is the first 3 bytes
+  _oneWire->write_bytes(read_data, 3, 1);
+
+  // wait for programming, we'll get alternating 1s and 0s when done
+  float timer = millis();
+  while(true){
+    if(_oneWire->read() == 0xAA){
+      break;
+    }
+    if( (millis() - timer) > 20 ){ // datasheet says it should only ever take 12ms at most to program
+      break;
+    }
+  }
+
+  // send reset
+  if(!_oneWire->reset()){
+    return false;
+  }
+
+  // check the floor address by reading
+  byte written_address = this->read_floor_address();
+
+  if(written_address == address) {
+    //return new address
+    return true;
+  }
+
+  return false;
 }
