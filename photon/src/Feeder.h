@@ -15,7 +15,6 @@ class Feeder {
             UNKNOWN_ERROR
         };
 
-        virtual bool init() = 0;
         virtual FeedResult feedDistance(uint16_t tenths_mm, bool forward) = 0;
 
 };

@@ -31,24 +31,34 @@
 #define INPUT_ANALOG 0x04
 #endif
 
-PhotonFeeder::PhotonFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_pin, uint8_t peel2_pin, RotaryEncoder* encoder) :
+PhotonFeeder::PhotonFeeder(
+            uint8_t drive1_pin,
+            uint8_t drive2_pin,
+            uint8_t peel1_pin,
+            uint8_t peel2_pin,
+            uint8_t led_red,
+            uint8_t led_green,
+            uint8_t led_blue,
+            RotaryEncoder* encoder
+        ) :
     _drive1_pin(drive1_pin),
     _drive2_pin(drive2_pin),
     _peel1_pin(peel1_pin),
     _peel2_pin(peel2_pin),
-    _encoder(encoder),
-    _position(0) {
-    init();
-}
-
-bool PhotonFeeder::init() {
+    _led_red(led_red),
+    _led_green(led_green),
+    _led_blue(led_blue),
+    _position(0),
+    _encoder(encoder) {
 
     pinMode(_drive1_pin, OUTPUT);
     pinMode(_drive2_pin, OUTPUT);
     pinMode(_peel1_pin, OUTPUT);
     pinMode(_peel2_pin, OUTPUT);
 
-    return true;
+    pinMode(_led_red, OUTPUT);
+    pinMode(_led_green, OUTPUT);
+    pinMode(_led_blue, OUTPUT);
 }
 
 Feeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
@@ -435,4 +445,10 @@ void PhotonFeeder::stop() {
     analogWrite(_drive2_pin, 0);
     analogWrite(_peel1_pin, 0);
     analogWrite(_peel2_pin, 0);
+}
+
+void PhotonFeeder::set_rgb(bool red, bool green, bool blue) {
+  digitalWrite(LED_R, ! red);
+  digitalWrite(LED_G, ! green);
+  digitalWrite(LED_B, ! blue);
 }

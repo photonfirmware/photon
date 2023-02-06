@@ -180,7 +180,7 @@ void PhotonFeederProtocol::handleInitializeFeeder(PhotonNetworkLayer *instance, 
         return;
     }
 
-    if (_feeder == NULL || !_feeder->init()) {
+    if (_feeder == nullptr) {
         //TODO: Send A Response Here To Indicate That The Feeder Coulsn't Be Initialized
         return;
     }

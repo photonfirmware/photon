@@ -70,9 +70,6 @@ PhotonFeeder *feeder;
 PhotonFeederProtocol *protocol;
 PhotonNetworkLayer *network;
 
-#define ALL_LEDS_OFF() byte_to_light(0x00)
-#define ALL_LEDS_ON() byte_to_light(0xff)
-
 //-------
 //FUNCTIONS
 //-------
@@ -82,23 +79,13 @@ void checkPosition()
   encoder.tick(); // just call tick() to check the state.
 }
 
-void byte_to_light(byte num){
-  digitalWrite(LED_R, !bitRead(num, 0));
-  digitalWrite(LED_G, !bitRead(num, 1));
-  digitalWrite(LED_B, !bitRead(num, 2));
-}
-
 void bootAnimation(){
   for(int i = 0;i<3;i++){
-    digitalWrite(LED_R, LOW);
-    digitalWrite(LED_G, LOW);
-    digitalWrite(LED_B, LOW);
+    feeder->set_rgb(true, true, true);
 
     delay(100);
 
-    digitalWrite(LED_R, HIGH);
-    digitalWrite(LED_G, HIGH);
-    digitalWrite(LED_B, HIGH);
+    feeder->set_rgb(false, false, false);
 
     delay(100);
   }
@@ -274,93 +261,18 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
 
 }
 
-bool select_floor_address(){
-
-  // put current address into a variable we'll manipulate
-  byte current_selection = addr;
-
-  // turn off LEDs so we're starting with a blank slate
-  ALL_LEDS_ON();
-
-  // wait until both buttons have been released
-  while(!digitalRead(SW1) || !digitalRead(SW2)){
-    //do nothing
-  }
-
-  ALL_LEDS_OFF();
-
-  while(true){
-    //we stay in here as long as both buttons aren't pressed
-    if(!digitalRead(SW1) && current_selection > 1){
-      delay(LONG_PRESS_DELAY);
-      if(!digitalRead(SW1) && !digitalRead(SW2)){
-        break;
-      }
-      current_selection = current_selection - 1;
-      while(!digitalRead(SW1)){
-        //do nothing
-      }
-    }
-    if(!digitalRead(SW2) && current_selection < 63){
-      delay(LONG_PRESS_DELAY);
-      if(!digitalRead(SW1) && !digitalRead(SW2)){
-        break;
-      }
-      current_selection = current_selection + 1;
-      while(!digitalRead(SW2)){
-        //do nothing
-      }
-    }
-    byte_to_light(current_selection);
-  }
-
-  ALL_LEDS_ON();
-
-  // wait for the buttons to come up
-  while(!digitalRead(SW1) || !digitalRead(SW2)){
-    //do nothing
-  }
-
-  byte written_address = write_floor_address(current_selection);
-
-  // if failed to write
-  if(written_address == 0x80){
-    while(true){
-      byte_to_light(0x03);
-      delay(100);
-      ALL_LEDS_OFF();
-      delay(100);
-    }
-    return false;
-  }
-
-  // If the network is configured, update the local address
-  // to the newly selected address.
-  if (network != NULL) {
-    network->setLocalAddress(addr);
-  }
-
-  for (int i = 0; i < 8; i++){
-    byte_to_light(i);
-    delay(30);
-  }
-
-  byte_to_light(addr);
-
-  return true;
-
-}
-
 //-------
 //SETUP
 //-------
 
 void setup() {
-  pinMode(LED_R, OUTPUT);
-  pinMode(LED_G, OUTPUT);
-  pinMode(LED_B, OUTPUT);
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
+
+  // Setup Feeder
+  feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, LED_R, LED_G, LED_B, &encoder);
+  protocol = new PhotonFeederProtocol(feeder, UniqueID, UniqueIDsize);
+  network = new PhotonNetworkLayer(&packetizer, &bus, addr, protocol);
   
   bootAnimation();
 
@@ -369,10 +281,10 @@ void setup() {
   addr = read_floor_address();
 
   if(addr == 0xFF){ // not detected, turn red
-    byte_to_light(0x01);
+    feeder->set_rgb(true, false, false);
   }
   else if (addr == 0x00){ //not programmed, turn blue
-    byte_to_light(0x04);
+    feeder->set_rgb(false, false, true);
   }
 
   //Starting rs-485 serial
@@ -381,11 +293,6 @@ void setup() {
   // attach interrupts for encoder pins
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_A), checkPosition, CHANGE);
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
-
-  // Setup Feeder
-  feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
-  protocol = new PhotonFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  network = new PhotonNetworkLayer(&packetizer, &bus, addr, protocol);
 
   feeder->checkLoaded();
 }
@@ -419,7 +326,7 @@ void loop() {
 
       if(!digitalRead(SW2)){
         //both are pressed, entering settings mode
-        byte_to_light(0x04);
+        feeder->set_rgb(false, false, true);
         if(drive_mode){
           drive_mode = false;
         }
@@ -429,7 +336,7 @@ void loop() {
         while(!digitalRead(SW1) || !digitalRead(SW2)){
           //do nothing while waiting for debounce
         }
-        byte_to_light(0x00);
+        feeder->set_rgb(false, false, false);
       }
       else{
         //we've got a long press, lets reverse 
@@ -466,7 +373,7 @@ void loop() {
 
       if(!digitalRead(SW1)){
         //both are pressed, entering settings mode
-        byte_to_light(0x04);
+        feeder->set_rgb(false, false, true);
         if(drive_mode){
           drive_mode = false;
         }
@@ -476,7 +383,7 @@ void loop() {
         while(!digitalRead(SW1) || !digitalRead(SW2)){
           //do nothing while waiting for debounce
         }
-        byte_to_light(0x00);
+        feeder->set_rgb(false, false, false);
       }
       else{
         //we've got a long press, lets peel film 
@@ -494,12 +401,12 @@ void loop() {
       
     }
     else{
-      byte_to_light(0x02);
+      feeder->set_rgb(false, true, false);
       if(feeder->feedDistance(40, true) == Feeder::FeedResult::SUCCESS){
-        byte_to_light(0x00);
+        feeder->set_rgb(false, false, false);
       }
       else{
-        byte_to_light(0x01);
+        feeder->set_rgb(true, false, false);
       }
       
     }  

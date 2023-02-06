@@ -16,16 +16,26 @@
 class PhotonFeeder : public Feeder {
 
     public:
-        PhotonFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_pin, uint8_t peel2_pin, RotaryEncoder* encoder);
-        bool init() override;
+        PhotonFeeder(
+            uint8_t drive1_pin,
+            uint8_t drive2_pin,
+            uint8_t peel1_pin,
+            uint8_t peel2_pin,
+            uint8_t led_red,
+            uint8_t led_green,
+            uint8_t led_blue,
+            RotaryEncoder* encoder
+        );
         Feeder::FeedResult feedDistance(uint16_t tenths_mm, bool forward) override;
-        bool peel(uint32_t peel_time, bool dir);
-        void driveTape(bool forward);
-        void brakeDrive(uint16_t brake_time);
-        bool checkLoaded();
-        void stop();
-        void setMmPosition(uint16_t position);
-        void setEncoderPosition(uint32_t position);
+        bool peel(uint32_t peel_time, bool dir);  // In main
+        void driveTape(bool forward);  // In main
+        void brakeDrive(uint16_t brake_time);  // In main
+        bool checkLoaded();  // In main
+        void stop();  // In main
+        void setMmPosition(uint16_t position);  // In Main, never set to a non-zero number
+        void setEncoderPosition(uint32_t position);  // In Main, never set to a non-zero number
+
+        void set_rgb(bool red, bool green, bool blue);
         
     private:
         uint8_t _drive1_pin;
@@ -34,15 +44,15 @@ class PhotonFeeder : public Feeder {
         uint8_t _peel1_pin;
         uint8_t _peel2_pin;  
 
+        uint8_t _led_red;
+        uint8_t _led_green;
+        uint8_t _led_blue;
+
         uint8_t _retry_limit = 3;
 
         signed long _position;
 
         RotaryEncoder* _encoder;
-
-        double* _Setpoint;
-        double* _Input;
-        double* _Output;
 
         float _Kp=0.5; // higher value, stronger response
         float _Ki=0.01; // higher value, stronger response (divided by Hz)
@@ -53,10 +63,6 @@ class PhotonFeeder : public Feeder {
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);
         bool moveInternal(bool forward, uint16_t tenths_mem);
-        
-        
-        bool loopback();
-
 };
 
 #endif //_PHOTON_FEEDER_H
