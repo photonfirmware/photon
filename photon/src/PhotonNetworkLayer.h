@@ -1,11 +1,11 @@
-#ifndef _INDEX_PROTOCOL_H
-#define _INDEX_PROTOCOL_H
+#ifndef _PHOTON_NETWORK_LAYER_H
+#define _PHOTON_NETWORK_LAYER_H
 
 #include "define.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <IndexPacketHandler.h>
+#include "PhotonPacketHandler.h"
 //#include <FastCRC.h>
 #include "Stream.h"
 
@@ -13,16 +13,16 @@
 #include <rs485/packetizer.h>
 #include "rs485/protocols/checksums/modbus_rtu.h"
 
-#define INDEX_NETWORK_MAX_PDU 32
-#define INDEX_PROTOCOL_CHECKSUM_LENGTH 2
+#define PHOTON_NETWORK_MAX_PDU 32
+#define PHOTON_PROTOCOL_CHECKSUM_LENGTH 2
 
-#define INDEX_NETWORK_CONTROLLER_ADDRESS 0x00
-#define INDEX_NETWORK_BROADCAST_ADDRESS 0xFF
+#define PHOTON_NETWORK_CONTROLLER_ADDRESS 0x00
+#define PHOTON_NETWORK_BROADCAST_ADDRESS 0xFF
 
-class IndexNetworkLayer
+class PhotonNetworkLayer
 {
 public:
-    IndexNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, IndexPacketHandler* handler);
+    PhotonNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, PhotonPacketHandler* handler);
 
     virtual void setTimeoutPeriod(uint32_t timeout);
     virtual uint32_t getTimeoutPeriod();
@@ -48,13 +48,12 @@ private:
     Packetizer* _packetizer;
     RS485Bus<RS485_BUS_BUFFER_SIZE>* _bus;
     uint8_t _local_address;
-    IndexPacketHandler* _handler;
+    PhotonPacketHandler* _handler;
     uint8_t _address;
     uint8_t _length;
-    uint8_t _index;
     uint8_t _send_buffer[64];
-    uint8_t _payload[INDEX_NETWORK_MAX_PDU];
-    uint8_t _rx_checksum[INDEX_PROTOCOL_CHECKSUM_LENGTH];
+    uint8_t _payload[PHOTON_NETWORK_MAX_PDU];
+    uint8_t _rx_checksum[PHOTON_PROTOCOL_CHECKSUM_LENGTH];
     uint32_t _last_byte_time;
     uint32_t _timeout_period;
 
@@ -62,4 +61,4 @@ private:
     void reset();
 };
 
-#endif //_INDEX_PROTOCOL_H
+#endif //_PHOTON_NETWORK_LAYER_H

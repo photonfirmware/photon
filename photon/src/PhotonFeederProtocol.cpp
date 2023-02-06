@@ -1,5 +1,5 @@
-#include "IndexFeederProtocol.h"
-#include "IndexNetworkLayer.h"
+#include "PhotonFeederProtocol.h"
+#include "PhotonNetworkLayer.h"
 
 #define MAX_PROTOCOL_VERSION 1
 
@@ -54,12 +54,12 @@ static const uint8_t zero_uuid[UUID_LENGTH] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 
 #define UNINITIALIZED_FEEDER_RESPONSE_LENGTH (2 + UUID_LENGTH)
 
-IndexFeederProtocol::IndexFeederProtocol(Feeder *feeder, const uint8_t *uuid, size_t uuid_length) : _feeder(feeder), _initialized(false) {
+PhotonFeederProtocol::PhotonFeederProtocol(Feeder *feeder, const uint8_t *uuid, size_t uuid_length) : _feeder(feeder), _initialized(false) {
     memset(_uuid, 0, UUID_LENGTH);
     memcpy(_uuid, uuid, (uuid_length < UUID_LENGTH) ? uuid_length : UUID_LENGTH);
 }
 
-void IndexFeederProtocol::handle(IndexNetworkLayer *instance, uint8_t *buffer, size_t buffer_length) {
+void PhotonFeederProtocol::handle(PhotonNetworkLayer *instance, uint8_t *buffer, size_t buffer_length) {
     
     // The buffer must be at least one octet long as it needs to contain the 
     // command id.
@@ -103,12 +103,12 @@ void IndexFeederProtocol::handle(IndexNetworkLayer *instance, uint8_t *buffer, s
     }
 }
 
-bool IndexFeederProtocol::isInitialized() {
+bool PhotonFeederProtocol::isInitialized() {
     return _initialized;
 }
 
 
-bool IndexFeederProtocol::checkLength(uint8_t command_id, size_t command_payload_length) {
+bool PhotonFeederProtocol::checkLength(uint8_t command_id, size_t command_payload_length) {
     protocol_command_t *command_entry = NULL;
     bool return_value = false;
     
@@ -138,7 +138,7 @@ bool IndexFeederProtocol::checkLength(uint8_t command_id, size_t command_payload
     return return_value;
 }
 
-bool IndexFeederProtocol::checkInitialized(IndexNetworkLayer *instance) {
+bool PhotonFeederProtocol::checkInitialized(PhotonNetworkLayer *instance) {
     // Checks if the feeder is initialized and returns an error if it hasn't been
     // Response: <feeder address> 0x03 <uuid:12>
 
@@ -147,14 +147,14 @@ bool IndexFeederProtocol::checkInitialized(IndexNetworkLayer *instance) {
         response[0] = instance->getLocalAddress();
         response[1] = STATUS_UNINITIALIZED_FEEDER;
         memcpy(&response[2], _uuid, UUID_LENGTH);
-        instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, UNINITIALIZED_FEEDER_RESPONSE_LENGTH);
+        instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, UNINITIALIZED_FEEDER_RESPONSE_LENGTH);
     }
 
     return _initialized;
 }
 
 
-void IndexFeederProtocol::handleGetFeederId(IndexNetworkLayer *instance) {
+void PhotonFeederProtocol::handleGetFeederId(PhotonNetworkLayer *instance) {
     // Payload: <command id>
     // Response: <feeder address> <ok> <uuid:12>
 
@@ -163,10 +163,10 @@ void IndexFeederProtocol::handleGetFeederId(IndexNetworkLayer *instance) {
     response[1] = STATUS_OK;
     memcpy(&response[2], _uuid, UUID_LENGTH);
 
-    instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, GET_FEEDER_ID_RESPONSE_LENGTH);
+    instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, GET_FEEDER_ID_RESPONSE_LENGTH);
 }
 
-void IndexFeederProtocol::handleInitializeFeeder(IndexNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
+void PhotonFeederProtocol::handleInitializeFeeder(PhotonNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
     //Payload: <command id> <uuid:12>
     //Response: <feeder address> <ok>
     
@@ -176,7 +176,7 @@ void IndexFeederProtocol::handleInitializeFeeder(IndexNetworkLayer *instance, ui
         response[0] = instance->getLocalAddress();
         response[1] = STATUS_WRONG_FEEDER_ID;
         memcpy(&response[2], _uuid, UUID_LENGTH);
-        instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, WRONG_FEEDER_RESPONSE_LENGTH);
+        instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, WRONG_FEEDER_RESPONSE_LENGTH);
         return;
     }
 
@@ -192,10 +192,10 @@ void IndexFeederProtocol::handleInitializeFeeder(IndexNetworkLayer *instance, ui
     uint8_t response[INITIALIZE_FEEDER_RESPONSE_LENGTH];
     response[0] = instance->getLocalAddress();
     response[1] = STATUS_OK;
-    instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, INITIALIZE_FEEDER_RESPONSE_LENGTH);
+    instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, INITIALIZE_FEEDER_RESPONSE_LENGTH);
 }
 
-void IndexFeederProtocol::handleGetVersion(IndexNetworkLayer *instance) {
+void PhotonFeederProtocol::handleGetVersion(PhotonNetworkLayer *instance) {
     uint8_t response[GET_VERSION_RESPONSE_LENGTH];
 
     // Build the response
@@ -204,10 +204,10 @@ void IndexFeederProtocol::handleGetVersion(IndexNetworkLayer *instance) {
     response[2] = MAX_PROTOCOL_VERSION;
 
     // Transmit The Packet To The Central
-    instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, GET_VERSION_RESPONSE_LENGTH);
+    instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, GET_VERSION_RESPONSE_LENGTH);
 }
 
-void IndexFeederProtocol::move(IndexNetworkLayer *instance, uint8_t distance, bool forward) {
+void PhotonFeederProtocol::move(PhotonNetworkLayer *instance, uint8_t distance, bool forward) {
 
     if (!checkInitialized(instance)) {
         return;
@@ -222,7 +222,7 @@ void IndexFeederProtocol::move(IndexNetworkLayer *instance, uint8_t distance, bo
         uint8_t response[MOVE_FEED_RESPONSE_LENGTH];
         response[0] = instance->getLocalAddress();
         response[1] = STATUS_OK;
-        instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, MOVE_FEED_RESPONSE_LENGTH);
+        instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, MOVE_FEED_RESPONSE_LENGTH);
     }
         break;
     
@@ -232,7 +232,7 @@ void IndexFeederProtocol::move(IndexNetworkLayer *instance, uint8_t distance, bo
         uint8_t response[MOVE_FEED_RESPONSE_LENGTH];
         response[0] = instance->getLocalAddress();
         response[1] = STATUS_MOTOR_FAULT;
-        instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, MOVE_FEED_RESPONSE_LENGTH);
+        instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, MOVE_FEED_RESPONSE_LENGTH);
     }
         break;
 
@@ -245,15 +245,15 @@ void IndexFeederProtocol::move(IndexNetworkLayer *instance, uint8_t distance, bo
     }
 }
 
-void IndexFeederProtocol::handleMoveFeedForward(IndexNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
+void PhotonFeederProtocol::handleMoveFeedForward(PhotonNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
     move(instance, payload[0], true);
 }
 
-void IndexFeederProtocol::handleMoveFeedBackward(IndexNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
+void PhotonFeederProtocol::handleMoveFeedBackward(PhotonNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
     move(instance, payload[0], false);
 }
 
-void IndexFeederProtocol::handleGetFeederAddress(IndexNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
+void PhotonFeederProtocol::handleGetFeederAddress(PhotonNetworkLayer *instance, uint8_t *payload, size_t payload_length) {
     //Payload: <command id> <uuid:12>
     //Response: <feeder address> <ok> <uuid:12>
 
@@ -268,5 +268,5 @@ void IndexFeederProtocol::handleGetFeederAddress(IndexNetworkLayer *instance, ui
     response[1] = STATUS_OK;
     memcpy(&response[2], _uuid, UUID_LENGTH);
 
-    instance->transmitPacket(INDEX_NETWORK_CONTROLLER_ADDRESS, response, GET_FEEDER_ADDRESS_RESPONSE_LENGTH);
+    instance->transmitPacket(PHOTON_NETWORK_CONTROLLER_ADDRESS, response, GET_FEEDER_ADDRESS_RESPONSE_LENGTH);
 }

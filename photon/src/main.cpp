@@ -24,9 +24,9 @@ GNU GPL v3
 
 #endif 
 
-#include <IndexFeeder.h>
-#include <IndexFeederProtocol.h>
-#include <IndexNetworkLayer.h>
+#include "PhotonFeeder.h"
+#include "PhotonFeederProtocol.h"
+#include "PhotonNetworkLayer.h"
 
 #include <rs485/rs485bus.hpp>
 #include <rs485/bus_adapters/hardware_serial.h>
@@ -66,9 +66,9 @@ double Setpoint, Input, Output;
 bool drive_mode = false;
 
 // Feeder Class Instances
-IndexFeeder *feeder;
-IndexFeederProtocol *protocol;
-IndexNetworkLayer *network;
+PhotonFeeder *feeder;
+PhotonFeederProtocol *protocol;
+PhotonNetworkLayer *network;
 
 #define ALL_LEDS_OFF() byte_to_light(0x00)
 #define ALL_LEDS_ON() byte_to_light(0xff)
@@ -383,9 +383,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
 
   // Setup Feeder
-  feeder = new IndexFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
-  protocol = new IndexFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  network = new IndexNetworkLayer(&packetizer, &bus, addr, protocol);
+  feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, &encoder);
+  protocol = new PhotonFeederProtocol(feeder, UniqueID, UniqueIDsize);
+  network = new PhotonNetworkLayer(&packetizer, &bus, addr, protocol);
 
   feeder->checkLoaded();
 }

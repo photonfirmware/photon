@@ -1,5 +1,5 @@
-#ifndef _INDEX_FEEDER_H
-#define _INDEX_FEEDER_H
+#ifndef _PHOTON_FEEDER_H
+#define _PHOTON_FEEDER_H
 
 #include "Feeder.h"
 #include <functional>
@@ -13,10 +13,10 @@
 
 
 
-class IndexFeeder : public Feeder {
+class PhotonFeeder : public Feeder {
 
     public:
-        IndexFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_pin, uint8_t peel2_pin, RotaryEncoder* encoder);
+        PhotonFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_pin, uint8_t peel2_pin, RotaryEncoder* encoder);
         bool init() override;
         Feeder::FeedResult feedDistance(uint16_t tenths_mm, bool forward) override;
         bool peel(uint32_t peel_time, bool dir);
@@ -59,4 +59,4 @@ class IndexFeeder : public Feeder {
 
 };
 
-#endif //_INDEX_FEEDER_H
+#endif //_PHOTON_FEEDER_H

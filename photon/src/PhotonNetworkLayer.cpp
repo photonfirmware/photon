@@ -1,43 +1,43 @@
 #include "define.h"
 
-#include "IndexNetworkLayer.h"
-#include "Arduino.h"
+#include "PhotonNetworkLayer.h"
+#include <Arduino.h>
 #include <cstring>
 #include <cstdio>
 
 #include <rs485/rs485bus.hpp>
 #include <rs485/packetizer.h>
-#include "rs485/protocols/checksums/modbus_rtu.h"
+#include <rs485/protocols/checksums/modbus_rtu.h>
 
 #ifndef NATIVE
 #include "util.h"
 #endif
 
-#define INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS 100
-#define INDEX_INCOMING_BUFFER_SIZE 16
+#define PHOTON_PROTOCOL_DEFAULT_TIMEOUT_MS 100
+#define PHOTON_INCOMING_BUFFER_SIZE 16
 #define RS485_CONTROL_DELAY 10
 
-IndexNetworkLayer::IndexNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, IndexPacketHandler* handler) :  _packetizer(packetizer), _bus(bus), _local_address(address), _handler(handler), _timeout_period(INDEX_PROTOCOL_DEFAULT_TIMEOUT_MS) {
+PhotonNetworkLayer::PhotonNetworkLayer(Packetizer* packetizer, RS485Bus<RS485_BUS_BUFFER_SIZE>* bus, uint8_t address, PhotonPacketHandler* handler) :  _packetizer(packetizer), _bus(bus), _local_address(address), _handler(handler), _timeout_period(PHOTON_PROTOCOL_DEFAULT_TIMEOUT_MS) {
     reset();
 }
 
-void IndexNetworkLayer::setTimeoutPeriod(uint32_t timeout) {
+void PhotonNetworkLayer::setTimeoutPeriod(uint32_t timeout) {
     _timeout_period = timeout;
 }
 
-uint32_t IndexNetworkLayer::getTimeoutPeriod() {
+uint32_t PhotonNetworkLayer::getTimeoutPeriod() {
     return _timeout_period;
 }
 
-void IndexNetworkLayer::setLocalAddress(uint8_t address) {
+void PhotonNetworkLayer::setLocalAddress(uint8_t address) {
     _local_address = address;
 }
 
-uint8_t IndexNetworkLayer::getLocalAddress() {
+uint8_t PhotonNetworkLayer::getLocalAddress() {
     return _local_address;
 }
 
-uint8_t IndexNetworkLayer::tick() {
+uint8_t PhotonNetworkLayer::tick() {
 
     // triggers if the packetizer detects that it has a packet
     if (_packetizer->hasPacket()){
@@ -80,14 +80,14 @@ uint8_t IndexNetworkLayer::tick() {
 
 }
 
-bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length) {
+bool PhotonNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length) {
 
     // Do some very basic integrity checks to make sure the call was valid
-    if (NULL == buffer || buffer_length > INDEX_NETWORK_MAX_PDU || buffer_length > UINT8_MAX) {
+    if (NULL == buffer || buffer_length > PHOTON_NETWORK_MAX_PDU || buffer_length > UINT8_MAX) {
         return false;
     }
 
-    uint8_t crc_array[INDEX_PROTOCOL_CHECKSUM_LENGTH];
+    uint8_t crc_array[PHOTON_PROTOCOL_CHECKSUM_LENGTH];
     ModbusRTUChecksum crc;
 
     crc.add(destination_address);
@@ -123,13 +123,12 @@ bool IndexNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_
     return true;
 }
 
-void IndexNetworkLayer::reset() {
+void PhotonNetworkLayer::reset() {
     // Reset The State Machine
     _address = 0;
     _length = 0;
-    _index = 0;
-    memset(_payload, 0, INDEX_NETWORK_MAX_PDU);
-    memset(_rx_checksum, 0, INDEX_PROTOCOL_CHECKSUM_LENGTH);
+    memset(_payload, 0, PHOTON_NETWORK_MAX_PDU);
+    memset(_rx_checksum, 0, PHOTON_PROTOCOL_CHECKSUM_LENGTH);
     _last_byte_time = 0;
 
 }

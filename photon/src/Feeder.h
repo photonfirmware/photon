@@ -20,4 +20,4 @@ class Feeder {
 
 };
 
-#endif //_INDEX_FEEDER_PROTOCOL_H
+#endif //_FEEDER_H

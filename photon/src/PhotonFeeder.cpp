@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "IndexFeeder.h"
+#include "PhotonFeeder.h"
 #include "define.h"
 
 #define TENTH_MM_PER_PIP 40
@@ -31,7 +31,7 @@
 #define INPUT_ANALOG 0x04
 #endif
 
-IndexFeeder::IndexFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_pin, uint8_t peel2_pin, RotaryEncoder* encoder) :
+PhotonFeeder::PhotonFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_pin, uint8_t peel2_pin, RotaryEncoder* encoder) :
     _drive1_pin(drive1_pin),
     _drive2_pin(drive2_pin),
     _peel1_pin(peel1_pin),
@@ -41,7 +41,7 @@ IndexFeeder::IndexFeeder(uint8_t drive1_pin, uint8_t drive2_pin, uint8_t peel1_p
     init();
 }
 
-bool IndexFeeder::init() {
+bool PhotonFeeder::init() {
 
     pinMode(_drive1_pin, OUTPUT);
     pinMode(_drive2_pin, OUTPUT);
@@ -51,10 +51,10 @@ bool IndexFeeder::init() {
     return true;
 }
 
-Feeder::FeedResult IndexFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
+Feeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     // if (abs(tenths_mm) % TENTH_MM_PER_PIP != 0) {
-    //     // The Index Feeder has only been tested and calibrated for moves of 4mm (One Pip) so far.
+    //     // The Opulo Photon Feeder has only been tested and calibrated for moves of 4mm (One Pip) so far.
     //     // If any other value is supplied, indicate it is invalid.
     //     return Feeder::FeedResult::INVALID_LENGTH;
     // }
@@ -68,7 +68,7 @@ Feeder::FeedResult IndexFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
     return Feeder::FeedResult::SUCCESS;
 }
 
-void IndexFeeder::brakeDrive(uint16_t brake_time){
+void PhotonFeeder::brakeDrive(uint16_t brake_time){
     //brings both drive pins high
     analogWrite(_drive1_pin, 255);
     analogWrite(_drive2_pin, 255);
@@ -84,7 +84,7 @@ void IndexFeeder::brakeDrive(uint16_t brake_time){
     This gets run on first movement command after boot, after quick move, or after the protocol requests it.
 
 */
-bool IndexFeeder::checkLoaded() {
+bool PhotonFeeder::checkLoaded() {
 
     //takes up any backlash slack, ensures any forward movement is tape movement
     analogWrite(_drive1_pin, 0);
@@ -201,7 +201,7 @@ bool IndexFeeder::checkLoaded() {
 *   absolute positioning vs. relative positioning in Marlin. Every mm->tick calculation needs to be done based on the initial 0 tick position.
 *
 */
-bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
+bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
     signed long goal_mm, timeout, signed_mm, current_tick, output;
 
     timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
@@ -330,15 +330,15 @@ bool IndexFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
     return ret;
 }
 
-void IndexFeeder::setEncoderPosition(uint32_t position){
+void PhotonFeeder::setEncoderPosition(uint32_t position){
     _encoder->setPosition(position);
 }
 
-void IndexFeeder::setMmPosition(uint16_t position){
+void PhotonFeeder::setMmPosition(uint16_t position){
     _position = position;
 }
 
-bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
+bool PhotonFeeder::peel(uint32_t peel_time, bool dir) {
     if(dir){
         //peel film
         digitalWrite(PA8, LOW);
@@ -363,7 +363,7 @@ bool IndexFeeder::peel(uint32_t peel_time, bool dir) {
     return true;
 }
 
-void IndexFeeder::driveTape(bool forward){
+void PhotonFeeder::driveTape(bool forward){
     if(forward){
         analogWrite(_drive1_pin, 0);
         analogWrite(_drive2_pin, 255);
@@ -374,7 +374,7 @@ void IndexFeeder::driveTape(bool forward){
     }
 }
 
-bool IndexFeeder::moveForward(uint16_t tenths_mm) {
+bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // First, ensure everything is stopped
     stop();
     
@@ -409,7 +409,7 @@ bool IndexFeeder::moveForward(uint16_t tenths_mm) {
     return false;
 }
 
-bool IndexFeeder::moveBackward(uint16_t tenths_mm) {
+bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     // First, ensure everything is stopped
     stop();
 
@@ -429,7 +429,7 @@ bool IndexFeeder::moveBackward(uint16_t tenths_mm) {
 
 }
 
-void IndexFeeder::stop() {
+void PhotonFeeder::stop() {
     // Stop Everything
     analogWrite(_drive1_pin, 0);
     analogWrite(_drive2_pin, 0);
