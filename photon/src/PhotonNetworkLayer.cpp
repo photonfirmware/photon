@@ -69,45 +69,10 @@ bool PhotonNetworkLayer::getPacket(uint8_t* buffer, size_t maxBufferLength) {
   return true;
 }
 
-bool PhotonNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length) {
+bool PhotonNetworkLayer::transmitPacket(const uint8_t *buffer, size_t buffer_length) {
+    _packetizer->writePacket(buffer, buffer_length);
 
-    // Do some very basic integrity checks to make sure the call was valid
-    if (NULL == buffer || buffer_length > PHOTON_NETWORK_MAX_PDU || buffer_length > UINT8_MAX) {
-        return false;
-    }
-
-    uint8_t crc_array[PHOTON_PROTOCOL_CHECKSUM_LENGTH];
-    ModbusRTUChecksum crc;
-
-    crc.add(destination_address);
-    crc.add(buffer_length);
-
-    for(int i = 0; i<buffer_length;i++){
-        crc.add(buffer[i]);
-    }
-
-    uint16_t checksum = crc.getChecksum();
-
-    crc_array[0] = (uint8_t)(crc & 0x0ff);
-    crc_array[1] = (uint8_t)((crc >> 8) & 0x0ff);
-
-    // first, find the length of the packet we're sending
-    uint8_t send_buffer_length = buffer_length + 4;
-
-    // now drop in the destination address and length
-    _send_buffer[0] = destination_address;
-    _send_buffer[1] = buffer_length;
-
-    // drop in the data buffer
-    for(int i = 0; i < buffer_length; i++){
-        _send_buffer[i + 2] = buffer[i];
-    }
-
-    // add crc bytes
-    _send_buffer[send_buffer_length - 2] = crc_array[0];
-    _send_buffer[send_buffer_length - 1] = crc_array[1];
-
-    _packetizer->writePacket(_send_buffer, send_buffer_length);
+    // TODO Handle write packet status result
 
     return true;
 }

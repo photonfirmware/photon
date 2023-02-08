@@ -6,27 +6,32 @@
 
 #define UUID_LENGTH 12
 
-struct __attribute__ ((packed)) PhotonPacketHeader {
-    uint8_t fromAddress;
+#define PHOTON_NETWORK_CONTROLLER_ADDRESS 0x00
+#define PHOTON_NETWORK_BROADCAST_ADDRESS 0xFF
+
+#define PACKED __attribute__ ((packed))
+
+struct PACKED PhotonPacketHeader {
     uint8_t toAddress;
+    uint8_t fromAddress;
     uint8_t packetId;
-    uint8_t packetLength;
+    uint8_t payloadLength;
     uint8_t checksum;
 };
 
-struct __attribute__ ((packed)) MoveCommand {
+struct PACKED MoveCommand {
     uint8_t distance;
 };
 
-struct __attribute__ ((packed)) GetFeederAddressCommand {
+struct PACKED GetFeederAddressCommand {
     uint8_t uuid[UUID_LENGTH];
 };
 
-struct __attribute__ ((packed)) InitializeFeederCommand {
+struct PACKED InitializeFeederCommand {
     uint8_t uuid[UUID_LENGTH];
 };
 
-struct __attribute__ ((packed)) PhotonCommand {
+struct PACKED PhotonCommand {
     PhotonPacketHeader header;
     uint8_t commandId;
     union {
@@ -36,8 +41,39 @@ struct __attribute__ ((packed)) PhotonCommand {
     };
 };
 
-struct __attribute__ ((packed)) PhotonResponse {
+struct GetFeederIdResponse {
+    uint8_t status;
+    uint8_t uuid[UUID_LENGTH];
+};
+
+struct PACKED InitializeFeederResponse {
+    uint8_t status;
+    uint8_t uuid[UUID_LENGTH];
+};
+
+struct PACKED GetProtocolVersionResponse {
+    uint8_t status;
+    uint8_t version;
+};
+
+struct PACKED MoveFeedResponse {
+    uint8_t status;
+};
+
+struct PACKED GetFeederAddressResponse {
+    uint8_t status;
+    uint8_t uuid[UUID_LENGTH];
+};
+
+struct PACKED PhotonResponse {
     PhotonPacketHeader header;
+    union {
+        GetFeederIdResponse getFeederId;
+        InitializeFeederResponse initializeFeeder;
+        GetProtocolVersionResponse protocolVersion;
+        MoveFeedResponse moveFeed;
+        GetFeederAddressResponse getFeederAddress;
+    };
 };
 
 class PhotonFeederProtocol {
@@ -59,15 +95,15 @@ class PhotonFeederProtocol {
 
         union {
             PhotonCommand command;
-            uint8_t buffer[sizeof(PhotonCommand)];
-        } packetCommandBuffer;
+            uint8_t commandBuffer[sizeof(PhotonCommand)];
+        };
 
         union {
             PhotonResponse response;
-            uint8_t buffer[sizeof(PhotonResponse)];
-        } packetResponseBuffer;
+            uint8_t responseBuffer[sizeof(PhotonResponse)];
+        };
 
-        bool checkInitialized();
+        bool guardInitialized();
         void handleGetFeederId();
         void handleInitializeFeeder();
         void handleGetVersion();
@@ -77,6 +113,8 @@ class PhotonFeederProtocol {
 
         void move(uint8_t distance, bool forwrd);
         bool isInitialized();
+
+        void transmitResponse(uint8_t payloadLength);
 };
 
 #endif //_PHOTON_FEEDER_PROTOCOL_H

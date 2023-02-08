@@ -17,9 +17,6 @@
 #define PHOTON_NETWORK_MAX_PDU 32
 #define PHOTON_PROTOCOL_CHECKSUM_LENGTH 2
 
-#define PHOTON_NETWORK_CONTROLLER_ADDRESS 0x00
-#define PHOTON_NETWORK_BROADCAST_ADDRESS 0xFF
-
 class PhotonNetworkLayer
 {
 public:
@@ -33,9 +30,8 @@ public:
     uint8_t getLocalAddress();
 
     bool getPacket(uint8_t* buffer, size_t maxBufferLength);
-    void tick();
 
-    bool transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length);
+    bool transmitPacket(const uint8_t *buffer, size_t buffer_length);
 
 private:
     RS485Bus<RS485_BUS_BUFFER_SIZE>* _bus;
