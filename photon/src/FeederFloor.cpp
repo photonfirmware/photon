@@ -77,14 +77,11 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   }
 
   // read back the CRC
-  byte ccrc = _oneWire->read();
+  //byte ccrc = _oneWire->read();
 
   //-----
   // Read Scratchpad
   //-----
-
-  // byte for the ccrc the eeprom will send us
-  byte scratchpad_ccrc;
 
   // reset the 1-wire line, and return failure if no chip detected
   if(!_oneWire->reset()){
@@ -105,8 +102,9 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
     read_data[i] = _oneWire->read();
   }
 
-  //read crc
-  scratchpad_ccrc = _oneWire->read();
+#if 0  // TODO we should probably be checking the CRC
+  // byte for the ccrc the eeprom will send us
+  byte scratchpad_ccrc = _oneWire->read();
 
   byte ccrc_calc = OneWire::crc8(read_data, sizeof(read_data));
 
@@ -114,6 +112,7 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   // if(scratchpad_ccrc != ccrc_calc){
   //   // do nothing
   // }
+#endif
 
   //-----
   // Copy Scratchpad to Memory

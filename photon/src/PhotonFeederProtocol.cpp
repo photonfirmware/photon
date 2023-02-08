@@ -8,6 +8,8 @@ typedef enum {
     STATUS_WRONG_FEEDER_ID = 0x01,
     STATUS_MOTOR_FAULT = 0x02,
     STATUS_UNINITIALIZED_FEEDER = 0x03,
+    STATUS_FEEDING_IN_PROGRESS = 0x04,
+    
     STATUS_TIMEOUT = 0xFE,
     STATUS_UNKNOWN_ERROR = 0xFF
 } FeederStatus;
@@ -19,6 +21,7 @@ typedef enum {
     GET_VERSION = 0x03,
     MOVE_FEED_FORWARD = 0x04,
     MOVE_FEED_BACKWARD = 0x05,
+    MOVE_FEED_STATUS = 0x06,
 
     // Broadcast Commands
     GET_FEEDER_ADDRESS = 0xc0,
@@ -55,6 +58,9 @@ void PhotonFeederProtocol::tick() {
         break;
     case MOVE_FEED_BACKWARD:
         handleMoveFeedBackward();
+        break;
+    case MOVE_FEED_STATUS:
+        handleMoveFeedStatus();
         break;
     case GET_FEEDER_ADDRESS:
         handleGetFeederAddress();
@@ -151,37 +157,17 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
         return;
     }
 
-    PhotonFeeder::FeedResult result = _feeder->feedDistance(distance, forward);
+    response = {
+        .moveFeed = {
+            .status = STATUS_OK,
+        },
+    };
 
-    switch (result)
-    {
-    case PhotonFeeder::FeedResult::SUCCESS:
-        response = {
-            .moveFeed = {
-                .status = STATUS_OK,
-            },
-        };
+    transmitResponse(sizeof(MoveFeedResponse));
 
-        transmitResponse(sizeof(MoveFeedResponse));
-        break;
-    
-    case PhotonFeeder::FeedResult::INVALID_LENGTH:    // For Now Handle Invalid Length & Motor Fault The Same
-    case PhotonFeeder::FeedResult::MOTOR_FAULT:
-        response = {
-            .moveFeed = {
-                .status = STATUS_MOTOR_FAULT,
-            },
-        };
-        transmitResponse(sizeof(MoveFeedResponse));
-        break;
+    // Everything below here needs to be handled elsewhere
 
-    case PhotonFeeder::FeedResult::UNKNOWN_ERROR:
-        //TODO: Send The Appropriate Response
-        break;
-
-    default:
-        break;
-    }
+    _feeder->feedDistance(distance, forward);
 }
 
 void PhotonFeederProtocol::handleMoveFeedForward() {
@@ -194,6 +180,40 @@ void PhotonFeederProtocol::handleMoveFeedBackward() {
     // Payload: <command id> <distance>
     // Response: <feeder address> <ok>
     move(command.move.distance, false);
+}
+
+void PhotonFeederProtocol::handleMoveFeedStatus() {
+    PhotonFeeder::FeedResult result = _feeder->getMoveResult();
+    uint8_t moveResponseStatus;
+
+    switch (result)
+    {
+    case PhotonFeeder::FeedResult::SUCCESS:
+        moveResponseStatus = STATUS_OK;
+        break;
+
+    case PhotonFeeder::FeedResult::IN_PROGRESS:
+        moveResponseStatus = STATUS_FEEDING_IN_PROGRESS;
+        break;
+    
+    case PhotonFeeder::FeedResult::INVALID_LENGTH:    // For Now Handle Invalid Length & Motor Fault The Same
+    case PhotonFeeder::FeedResult::MOTOR_FAULT:
+        moveResponseStatus = STATUS_MOTOR_FAULT;
+        break;
+
+    case PhotonFeeder::FeedResult::UNKNOWN_ERROR:
+    default:
+        moveResponseStatus = STATUS_UNKNOWN_ERROR;
+        break;
+    }
+
+    response = {
+        .moveFeed = {
+            .status = moveResponseStatus,
+        },
+    };
+
+    transmitResponse(sizeof(MoveFeedResponse));
 }
 
 void PhotonFeederProtocol::handleGetFeederAddress() {

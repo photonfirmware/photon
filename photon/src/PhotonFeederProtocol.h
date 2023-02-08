@@ -109,6 +109,7 @@ class PhotonFeederProtocol {
         void handleGetVersion();
         void handleMoveFeedForward();
         void handleMoveFeedBackward();
+        void handleMoveFeedStatus(); 
         void handleGetFeederAddress();
 
         void move(uint8_t distance, bool forwrd);
