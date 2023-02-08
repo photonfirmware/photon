@@ -104,8 +104,8 @@ void setup() {
 
   // Setup Feeder
   feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, LED_R, LED_G, LED_B, &encoder);
-  protocol = new PhotonFeederProtocol(feeder, UniqueID, UniqueIDsize);
-  network = new PhotonNetworkLayer(&bus, &packetizer, &addressFilter, &feederFloor, protocol);
+  network = new PhotonNetworkLayer(&bus, &packetizer, &addressFilter, &feederFloor);
+  protocol = new PhotonFeederProtocol(feeder, network, UniqueID, UniqueIDsize);
   
   bootAnimation();
 
@@ -245,7 +245,7 @@ inline void keyPressedTwo() {
 }
 
 inline void checkForRS485Packet() {
-  network->tick();
+  protocol->tick();
 }
 
 //------

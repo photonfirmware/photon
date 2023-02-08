@@ -19,13 +19,11 @@ PhotonNetworkLayer::PhotonNetworkLayer(
     RS485Bus<RS485_BUS_BUFFER_SIZE>* bus,
     Packetizer* packetizer,
     FilterByValue* addressFilter,
-    FeederFloor* feederFloor,
-    PhotonPacketHandler* handler) :
+    FeederFloor* feederFloor) :
     _bus(bus),
     _packetizer(packetizer),
     _addressFilter(addressFilter),
     _feederFloor(feederFloor),
-    _handler(handler),
     _local_address(0xFF) {
     _local_address = _feederFloor->read_floor_address();
 
@@ -37,40 +35,38 @@ PhotonNetworkLayer::PhotonNetworkLayer(
 }
 
 void PhotonNetworkLayer::setLocalAddress(uint8_t address) {
+    if(_local_address != 0xff) {
+        // The old address is no longer valid
+        _addressFilter->postValues.reject(_local_address);
+    }
+
     _local_address = address;
+    _addressFilter->postValues.allow(_local_address);
 }
 
 uint8_t PhotonNetworkLayer::getLocalAddress() {
     return _local_address;
 }
 
-void PhotonNetworkLayer::tick() {
+bool PhotonNetworkLayer::getPacket(uint8_t* buffer, size_t maxBufferLength) {
   // triggers if the packetizer detects that it has a packet
   if (! _packetizer->hasPacket()){
-    return;
+    return false;
   }
 
-  uint8_t packet_length = _packetizer->packetLength();
-
-  if(packet_length == 0){
-    return;
-  }
-
-  // make buffer of that length
-  uint8_t buffer[packet_length];
-
+  size_t packet_length = std::min(_packetizer->packetLength(), maxBufferLength);
   // iterate through all bytes in RS485 object and plop them in the buffer
   for(int i = 0; i<packet_length; i++){
     buffer[i] = (*_bus)[i];
   }
 
+  // Ideally the RS485 library handes delay
   delay(10);
-
-  // handle buffer
-  _handler->handle(this, buffer, packet_length);
 
   // clear the packet
   _packetizer->clearPacket();
+
+  return true;
 }
 
 bool PhotonNetworkLayer::transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length) {

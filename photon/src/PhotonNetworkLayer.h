@@ -27,12 +27,12 @@ public:
     RS485Bus<RS485_BUS_BUFFER_SIZE>* bus,
     Packetizer* packetizer,
     FilterByValue* addressFilter,
-    FeederFloor* feederFloor,
-    PhotonPacketHandler* handler);
+    FeederFloor* feederFloor);
 
     void setLocalAddress(uint8_t address);
     uint8_t getLocalAddress();
 
+    bool getPacket(uint8_t* buffer, size_t maxBufferLength);
     void tick();
 
     bool transmitPacket(uint8_t destination_address, const uint8_t *buffer, size_t buffer_length);
@@ -42,7 +42,6 @@ private:
     Packetizer* _packetizer;
     FilterByValue* _addressFilter;
     FeederFloor* _feederFloor;
-    PhotonPacketHandler* _handler;
     uint8_t _send_buffer[64];
 
     uint8_t _local_address;
