@@ -9,6 +9,7 @@ typedef enum {
     STATUS_MOTOR_FAULT = 0x02,
     STATUS_UNINITIALIZED_FEEDER = 0x03,
     STATUS_FEEDING_IN_PROGRESS = 0x04,
+    STATUS_FAIL = 0x05,
     
     STATUS_TIMEOUT = 0xFE,
     STATUS_UNKNOWN_ERROR = 0xFF
@@ -23,14 +24,24 @@ typedef enum {
     MOVE_FEED_BACKWARD = 0x05,
     MOVE_FEED_STATUS = 0x06,
 
+    VENDOR_OPTIONS = 0xbf,
+
     // Broadcast Commands
     GET_FEEDER_ADDRESS = 0xc0,
+    IDENTIFY_FEEDER = 0xc1,
+    PROGRAM_FEEDER_FLOOR = 0xc2,
+    // EXTENDED_COMMAND = 0xff, Unused, reserved for future use
 } FeederCommand;
 
 PhotonFeederProtocol::PhotonFeederProtocol(
     PhotonFeeder *feeder,
+    FeederFloor *feederFloor,
     PhotonNetworkLayer* network,
-    const uint8_t *uuid, size_t uuid_length) : _feeder(feeder), _network(network), _initialized(false) {
+    const uint8_t *uuid, size_t uuid_length) :
+    _feeder(feeder),
+    _feederFloor(feederFloor),
+    _network(network),
+    _initialized(false) {
     memset(_uuid, 0, UUID_LENGTH);
     memcpy(_uuid, uuid, (uuid_length < UUID_LENGTH) ? uuid_length : UUID_LENGTH);
 }
@@ -62,8 +73,17 @@ void PhotonFeederProtocol::tick() {
     case MOVE_FEED_STATUS:
         handleMoveFeedStatus();
         break;
+    case VENDOR_OPTIONS:
+        handleVendorOptions();
+        break;
     case GET_FEEDER_ADDRESS:
         handleGetFeederAddress();
+        break;
+    case IDENTIFY_FEEDER:
+        handleIdentifyFeeder();
+        break;
+    case PROGRAM_FEEDER_FLOOR:
+        handleProgramFeederFloor();
         break;
     default:
         // Something has gone wrong if execution ever gets here.
@@ -77,8 +97,6 @@ bool PhotonFeederProtocol::isInitialized() {
 
 bool PhotonFeederProtocol::guardInitialized() {
     // Checks if the feeder is initialized and returns an error if it hasn't been
-    // Response: <feeder address> 0x03 <uuid:12>
-
     if (_initialized) {
         return true;
     }
@@ -95,9 +113,6 @@ bool PhotonFeederProtocol::guardInitialized() {
 
 
 void PhotonFeederProtocol::handleGetFeederId() {
-    // Payload: <command id>
-    // Response: <feeder address> <ok> <uuid:12>
-
     response = {
         .status = STATUS_OK
     };
@@ -107,9 +122,6 @@ void PhotonFeederProtocol::handleGetFeederId() {
 }
 
 void PhotonFeederProtocol::handleInitializeFeeder() {
-    //Payload: <command id> <uuid:12>
-    //Response: <feeder address> <ok>
-    
     // Check uuid is correct, if not return a Wrong Feeder UUID error
     bool requestedUUIDMatchesMine = memcmp(command.initializeFeeder.uuid, _uuid, UUID_LENGTH) == 0;
     if (! requestedUUIDMatchesMine) {
@@ -161,14 +173,10 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
 }
 
 void PhotonFeederProtocol::handleMoveFeedForward() {
-    // Payload: <command id> <distance>
-    // Response: <feeder address> <ok>
     move(command.move.distance, true);
 }
 
 void PhotonFeederProtocol::handleMoveFeedBackward() {
-    // Payload: <command id> <distance>
-    // Response: <feeder address> <ok>
     move(command.move.distance, false);
 }
 
@@ -205,9 +213,6 @@ void PhotonFeederProtocol::handleMoveFeedStatus() {
 }
 
 void PhotonFeederProtocol::handleGetFeederAddress() {
-    //Payload: <command id> <uuid:12>
-    //Response: <feeder address> <ok> <uuid:12>
-
     // Check For Feeder Match
     bool requestedUUIDMatchesMine = memcmp(command.initializeFeeder.uuid, _uuid, UUID_LENGTH) == 0;
     if (! requestedUUIDMatchesMine) {
@@ -219,6 +224,40 @@ void PhotonFeederProtocol::handleGetFeederAddress() {
     };
 
     transmitResponse(sizeof(GetFeederAddressResponse));
+}
+
+void PhotonFeederProtocol::handleVendorOptions() {
+    if (! guardInitialized()) {
+        return;
+    }
+
+    _feeder->vendorSpecific(command.vendorOptions.options);
+
+    response = {
+        .status = STATUS_OK,
+    };
+
+    transmitResponse();
+}
+
+void PhotonFeederProtocol::handleIdentifyFeeder() {
+    _feeder->identify();
+
+    response = {
+        .status = STATUS_OK,
+    };
+
+    transmitResponse();
+}
+
+void PhotonFeederProtocol::handleProgramFeederFloor() {
+    bool addressWritten = _feederFloor->write_floor_address(command.programFeederFloorAddress.address);
+
+    response = {
+        .status = addressWritten ? STATUS_OK : STATUS_FAIL,
+    };
+
+    transmitResponse();
 }
 
 void PhotonFeederProtocol::transmitResponse(uint8_t responseSize) {
@@ -244,7 +283,9 @@ void PhotonFeederProtocol::transmitResponse(uint8_t responseSize) {
         crc.add(responseBuffer[sizeof(PhotonPacketHeader) + i]);
     }
 
-    response.header.checksum = (uint8_t)(crc & 0x0ff);
+    uint16_t crc16 = crc;
+    response.header.crcMSB = (uint8_t) crc16 >> 8;
+    response.header.crcLSB = (uint8_t) crc16;
 
     size_t totalPacketLength = sizeof(PhotonPacketHeader) + response.header.payloadLength;
     _network->transmitPacket(responseBuffer, totalPacketLength);

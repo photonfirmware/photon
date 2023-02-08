@@ -1,6 +1,7 @@
 #ifndef _PHOTON_FEEDER_PROTOCOL_H
 #define _PHOTON_FEEDER_PROTOCOL_H
 
+#include "FeederFloor.h"
 #include "PhotonFeeder.h"
 #include "PhotonNetworkLayer.h"
 
@@ -16,7 +17,8 @@ struct PACKED PhotonPacketHeader {
     uint8_t fromAddress;
     uint8_t packetId;
     uint8_t payloadLength;
-    uint8_t checksum;
+    uint8_t crcMSB;
+    uint8_t crcLSB;
 };
 
 struct PACKED MoveCommand {
@@ -31,6 +33,14 @@ struct PACKED InitializeFeederCommand {
     uint8_t uuid[UUID_LENGTH];
 };
 
+struct PACKED VendorOptionsCommand {
+    uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH];
+};
+
+struct PACKED ProgramFeederFloorAddress {
+    uint8_t address;
+};
+
 struct PACKED PhotonCommand {
     PhotonPacketHeader header;
     uint8_t commandId;
@@ -38,6 +48,8 @@ struct PACKED PhotonCommand {
         MoveCommand move;
         GetFeederAddressCommand getFeederAddress;
         InitializeFeederCommand initializeFeeder;
+        VendorOptionsCommand vendorOptions;
+        ProgramFeederFloorAddress programFeederFloorAddress;
     };
 };
 
@@ -73,6 +85,7 @@ class PhotonFeederProtocol {
     public:
         PhotonFeederProtocol(
             PhotonFeeder *feeder,
+            FeederFloor *feederFloor,
             PhotonNetworkLayer* network,
             const uint8_t *uuid,
             size_t uuid_length
@@ -81,6 +94,7 @@ class PhotonFeederProtocol {
     
     private:
         PhotonFeeder* _feeder;
+        FeederFloor* _feederFloor;
         PhotonNetworkLayer* _network;
         uint8_t _uuid[UUID_LENGTH];
         bool _initialized;
@@ -95,22 +109,23 @@ class PhotonFeederProtocol {
             uint8_t responseBuffer[sizeof(PhotonResponse)];
         };
 
+        // Unicast
         bool guardInitialized();
         void handleGetFeederId();
         void handleInitializeFeeder();
         void handleGetVersion();
         void handleMoveFeedForward();
         void handleMoveFeedBackward();
-        void handleMoveFeedStatus(); 
+        void handleMoveFeedStatus();
+        void handleVendorOptions();
+
+        // Broadcast
         void handleGetFeederAddress();
+        void handleIdentifyFeeder();
+        void handleProgramFeederFloor();
 
         void move(uint8_t distance, bool forwrd);
         bool isInitialized();
-
-        template<typename T>
-        void transmitResponse() {
-            transmitResponse(sizeof(T));
-        }
 
         void transmitResponse(uint8_t responseSize = 0);
 };

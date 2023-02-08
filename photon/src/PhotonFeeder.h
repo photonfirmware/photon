@@ -10,6 +10,7 @@
 #endif
 
 
+#define VENDOR_SPECIFIC_OPTIONS_LENGTH 20  // Chosen by fair d20 roll
 
 
 class PhotonFeeder {
@@ -44,6 +45,12 @@ class PhotonFeeder {
         void stop();  // In main
         void setMmPosition(uint16_t position);  // In Main, never set to a non-zero number
         void setEncoderPosition(uint32_t position);  // In Main, never set to a non-zero number
+
+        // BEGIN vendor specific
+        // Should probably be virtual with hardware overriding it as well as return status
+        void vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH]) {};
+        void identify() {};
+        // END vendor specific
 
         void set_rgb(bool red, bool green, bool blue);
         
