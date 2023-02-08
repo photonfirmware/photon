@@ -28,6 +28,7 @@ PhotonNetworkLayer::PhotonNetworkLayer(
     _local_address = _feederFloor->read_floor_address();
 
     _packetizer->setFilter(*_addressFilter);
+    _addressFilter->preValues.allowAll();
     _addressFilter->postValues.allow(0xFF);
 
     // If floor address isn't set, _local_address is 0xFF and this function does nothing
