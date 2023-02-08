@@ -84,9 +84,7 @@ bool PhotonFeederProtocol::guardInitialized() {
     }
 
     response = {
-        .initializeFeeder = {
-            .status = STATUS_UNINITIALIZED_FEEDER,
-        },
+        .status = STATUS_UNINITIALIZED_FEEDER,
     };
     memcpy(response.initializeFeeder.uuid, _uuid, UUID_LENGTH);
 
@@ -101,9 +99,7 @@ void PhotonFeederProtocol::handleGetFeederId() {
     // Response: <feeder address> <ok> <uuid:12>
 
     response = {
-        .getFeederId = {
-            .status = STATUS_OK
-        }
+        .status = STATUS_OK
     };
     memcpy(response.getFeederId.uuid, _uuid, UUID_LENGTH);
 
@@ -118,9 +114,7 @@ void PhotonFeederProtocol::handleInitializeFeeder() {
     bool requestedUUIDMatchesMine = memcmp(command.initializeFeeder.uuid, _uuid, UUID_LENGTH) == 0;
     if (! requestedUUIDMatchesMine) {
         response = {
-            .initializeFeeder = {
-                .status = STATUS_WRONG_FEEDER_ID,
-            },
+            .status = STATUS_WRONG_FEEDER_ID,
         };
         memcpy(response.initializeFeeder.uuid, _uuid, UUID_LENGTH);
 
@@ -132,9 +126,7 @@ void PhotonFeederProtocol::handleInitializeFeeder() {
     _initialized = true;
 
     response = {
-        .initializeFeeder = {
-            .status = STATUS_OK,
-        },
+        .status = STATUS_OK,
     };
     memcpy(response.initializeFeeder.uuid, _uuid, UUID_LENGTH);
 
@@ -143,8 +135,8 @@ void PhotonFeederProtocol::handleInitializeFeeder() {
 
 void PhotonFeederProtocol::handleGetVersion() {
     response = {
+        .status = STATUS_OK,
         .protocolVersion = {
-            .status = STATUS_OK,
             .version = MAX_PROTOCOL_VERSION,
         },
     };
@@ -158,12 +150,10 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
     }
 
     response = {
-        .moveFeed = {
-            .status = STATUS_OK,
-        },
+        .status = STATUS_OK,
     };
 
-    transmitResponse(sizeof(MoveFeedResponse));
+    transmitResponse();
 
     // Everything below here needs to be handled elsewhere
 
@@ -208,12 +198,10 @@ void PhotonFeederProtocol::handleMoveFeedStatus() {
     }
 
     response = {
-        .moveFeed = {
-            .status = moveResponseStatus,
-        },
+        .status = moveResponseStatus,
     };
 
-    transmitResponse(sizeof(MoveFeedResponse));
+    transmitResponse();
 }
 
 void PhotonFeederProtocol::handleGetFeederAddress() {
@@ -227,20 +215,22 @@ void PhotonFeederProtocol::handleGetFeederAddress() {
     }
 
     response = {
-        .getFeederAddress = {
-            .status = STATUS_OK,
-        },
+        .status = STATUS_OK,
     };
 
     transmitResponse(sizeof(GetFeederAddressResponse));
 }
 
-void PhotonFeederProtocol::transmitResponse(uint8_t payloadLength) {
+void PhotonFeederProtocol::transmitResponse(uint8_t responseSize) {
+    // responseSize is only the anonymous uninion in the response, not any variables common to all responses
+    // We handle common values here.
+    responseSize++; // uint8_t status
+
     response.header = {
             .toAddress = PHOTON_NETWORK_CONTROLLER_ADDRESS,
             .fromAddress = _network->getLocalAddress(),
             .packetId = command.header.packetId,
-            .payloadLength = payloadLength,
+            .payloadLength = responseSize,
     };
 
     ModbusRTUChecksum crc;

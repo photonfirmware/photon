@@ -42,36 +42,28 @@ struct PACKED PhotonCommand {
 };
 
 struct GetFeederIdResponse {
-    uint8_t status;
     uint8_t uuid[UUID_LENGTH];
 };
 
 struct PACKED InitializeFeederResponse {
-    uint8_t status;
     uint8_t uuid[UUID_LENGTH];
 };
 
 struct PACKED GetProtocolVersionResponse {
-    uint8_t status;
     uint8_t version;
 };
 
-struct PACKED MoveFeedResponse {
-    uint8_t status;
-};
-
 struct PACKED GetFeederAddressResponse {
-    uint8_t status;
     uint8_t uuid[UUID_LENGTH];
 };
 
 struct PACKED PhotonResponse {
     PhotonPacketHeader header;
+    uint8_t status;
     union {
         GetFeederIdResponse getFeederId;
         InitializeFeederResponse initializeFeeder;
         GetProtocolVersionResponse protocolVersion;
-        MoveFeedResponse moveFeed;
         GetFeederAddressResponse getFeederAddress;
     };
 };
@@ -115,7 +107,12 @@ class PhotonFeederProtocol {
         void move(uint8_t distance, bool forwrd);
         bool isInitialized();
 
-        void transmitResponse(uint8_t payloadLength);
+        template<typename T>
+        void transmitResponse() {
+            transmitResponse(sizeof(T));
+        }
+
+        void transmitResponse(uint8_t responseSize = 0);
 };
 
 #endif //_PHOTON_FEEDER_PROTOCOL_H
