@@ -64,8 +64,10 @@ RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03)
 // PID
 double Setpoint, Input, Output;
 
-// Drive mode toggle
+// Flags
 bool drive_mode = false;
+bool driving = false;
+bool driving_direction = false;
 
 // Feeder Class Instances
 PhotonFeeder *feeder;
@@ -109,16 +111,14 @@ void setup() {
   
   bootAnimation();
 
-  // put current floor address on the leds if detected
+  byte addr = feederFloor.read_floor_address();
 
-  // addr = read_floor_address();
-
-  // if(addr == 0xFF){ // not detected, turn red
-  //   feeder->set_rgb(true, false, false);
-  // }
-  // else if (addr == 0x00){ //not programmed, turn blue
-  //   feeder->set_rgb(false, false, true);
-  // }
+  if(addr == 0xFF){ // not detected, turn red
+    feeder->set_rgb(true, false, false);
+  }
+  else if (addr == 0x00){ //not programmed, turn blue
+    feeder->set_rgb(false, false, true);
+  }
 
   //Starting rs-485 serial
   ser.begin(BAUD_RATE);
@@ -146,101 +146,117 @@ void lifetime(){
   }
 }
 
-inline void keyPressedOne() {
-  // Checking SW1 status to go backward, or initiate settings mode
-  if(!digitalRead(SW1)){
-    delay(LONG_PRESS_DELAY);
-
-    if(!digitalRead(SW1)){
-
-      if(!digitalRead(SW2)){
-        //both are pressed, entering settings mode
-        feeder->set_rgb(false, false, true);
-        if(drive_mode){
-          drive_mode = false;
-        }
-        else{
-          drive_mode = true;
-        }
-        while(!digitalRead(SW1) || !digitalRead(SW2)){
-          //do nothing while waiting for debounce
-        }
-        feeder->set_rgb(false, false, false);
-      }
-      else{
-        //we've got a long press, lets reverse 
-        while(!digitalRead(SW1)){
-
-          if(drive_mode){
-            feeder->peel(50, false);
-          }
-          else{
-            feeder->driveTape(false);
-          }
-        }
-        feeder->brakeDrive(200);
-        feeder->stop();
-        feeder->setEncoderPosition(0);
-        feeder->setMmPosition(0);
-        
-      }
-      
-    }
-    else{
-      //feeder->feedDistance(40, false);
-      //feeder->checkLoaded();
-      lifetime();
-      
-    }
+void topShortPress(){
+  //turn led green for movement
+  feeder->set_rgb(false, true, false);
+  // move forward 4mm
+  if(feeder->feedDistance(40, true) == PhotonFeeder::FeedResult::SUCCESS){
+    feeder->set_rgb(false, false, false);
+  }
+  else{
+    feeder->set_rgb(true, false, false);
   }
 }
 
-inline void keyPressedTwo() {
-  // Checking SW2 status to go forward
-  if(!digitalRead(SW2)){
-    delay(LONG_PRESS_DELAY);
+void bottomShortPress(){
+  feeder->checkLoaded();
+}
 
-    if(!digitalRead(SW2)){
+void topLongPress(){
+  //we've got a long top press, lets drive forward, tape or film depending on drive_mode
+  if(drive_mode){
+    feeder->peel(true);
+  }
+  else{
+    feeder->drive(true);
+  }
+      // set flag for concurrency to know driving state
+  driving = true;
+  driving_direction = true;
+}
 
+void bottomLongPress(){
+  // moving in reverse, motor selected by drive_mode
+  if(drive_mode){
+    feeder->peel(false);
+  }
+  else{
+    feeder->drive(false);
+  }
+    // set flag for concurrency to know driving state
+  driving = true;
+  driving_direction = false;
+
+}
+
+void bothLongPress(){
+  //both are pressed, switching if we are driving tape or film
+  feeder->set_rgb(false, false, true);
+  if(drive_mode){
+    drive_mode = false;
+  }
+  else{
+    drive_mode = true;
+  }
+  while(!digitalRead(SW1) || !digitalRead(SW2)){
+    //do nothing while waiting for debounce
+  }
+  //delay for debounce
+  delay(10);
+  feeder->set_rgb(false, false, false);
+}
+
+inline void checkButtons() {
+  if(!driving){
+    // Checking bottom button
+    if(!digitalRead(SW1)){
+      delay(LONG_PRESS_DELAY);
+      // if bottom long press
       if(!digitalRead(SW1)){
-        //both are pressed, entering settings mode
-        feeder->set_rgb(false, false, true);
-        if(drive_mode){
-          drive_mode = false;
+        // if both long press
+        if(!digitalRead(SW2)){
+          bothLongPress();
         }
+        // if just bottom long press
         else{
-          drive_mode = true;
+          bottomLongPress();
         }
-        while(!digitalRead(SW1) || !digitalRead(SW2)){
-          //do nothing while waiting for debounce
-        }
-        feeder->set_rgb(false, false, false);
       }
+      // if bottom short press
       else{
-        //we've got a long press, lets peel film 
-        while(!digitalRead(SW2)){
-          if(drive_mode){
-            feeder->peel(50, true);
-          }
-          else{feeder->driveTape(true);}
-        }
-        feeder->brakeDrive(200);
-        feeder->stop();
-        feeder->setEncoderPosition(0);
-        feeder->setMmPosition(0);
+        bottomShortPress(); 
       }
-      
     }
-    else{
-      feeder->set_rgb(false, true, false);
-      if(feeder->feedDistance(40, true) == PhotonFeeder::FeedResult::SUCCESS){
-        feeder->set_rgb(false, false, false);
+    // Checking top button
+    if(!digitalRead(SW2)){
+      delay(LONG_PRESS_DELAY);
+      // if top long press
+      if(!digitalRead(SW2)){
+        // if both long press
+        if(!digitalRead(SW1)){
+          bothLongPress();
+        }
+        // if just top long press
+        else{
+          topLongPress();
+        }
       }
+      // if top short press
       else{
-        feeder->set_rgb(true, false, false);
-      }
-      
-    }  
+        topShortPress();
+      }  
+    }
+  }
+  else{
+    if((driving_direction && digitalRead(SW2)) || (!driving_direction && digitalRead(SW1))){
+      //stop all motors
+      feeder->halt();
+      //reset encoder and mm position
+      feeder->setEncoderPosition(0);
+      feeder->setMmPosition(0);
+      driving = false;
+      delay(5);
+    }
   }
 }
 
@@ -252,7 +268,6 @@ inline void checkForRS485Packet() {
 //  MAIN CONTROL LOOP
 //------
 void loop() {
-  keyPressedOne();
-  keyPressedTwo();
+  checkButtons();
   checkForRS485Packet();
 }

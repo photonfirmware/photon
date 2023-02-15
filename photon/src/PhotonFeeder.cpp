@@ -78,15 +78,21 @@ PhotonFeeder::FeedResult PhotonFeeder::feedDistance(uint16_t tenths_mm, bool for
     return PhotonFeeder::FeedResult::SUCCESS;
 }
 
-void PhotonFeeder::brakeDrive(uint16_t brake_time){
+void PhotonFeeder::brakeDrive(){
     //brings both drive pins high
     analogWrite(_drive1_pin, 255);
     analogWrite(_drive2_pin, 255);
+}
 
-    delay(brake_time);
+void PhotonFeeder::brakePeel(){
+    //brings both drive pins high
+    analogWrite(_peel1_pin, 255);
+    analogWrite(_peel2_pin, 255);
+}
 
-    stop();
-
+void PhotonFeeder::halt(){
+    brakeDrive();
+    brakePeel();
 }
 
 /*  checkLoaded()
@@ -103,9 +109,9 @@ bool PhotonFeeder::checkLoaded() {
 
     analogWrite(_drive1_pin, 0);
     analogWrite(_drive2_pin, 20);
-    delay(500);
+    delay(100);
 
-    stop();
+    halt();
 
     // find starting threshold of movement
     int errorThreshold = 3;
@@ -326,9 +332,7 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
     }
 
     // brake to kill any coast
-    brakeDrive(100);
-    // turn off all motors
-    stop();
+    brakeDrive();
 
     // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
     // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
@@ -348,32 +352,19 @@ void PhotonFeeder::setMmPosition(uint16_t position){
     _position = position;
 }
 
-bool PhotonFeeder::peel(uint32_t peel_time, bool dir) {
-    if(dir){
-        //peel film
-        digitalWrite(PA8, LOW);
+bool PhotonFeeder::peel(bool forward) {
+    if(forward){
         analogWrite(_peel1_pin, 255);
         analogWrite(_peel2_pin, 0);
-        delay(peel_time);
-        analogWrite(_peel1_pin, 0);
-        analogWrite(_peel2_pin, 0);
-        digitalWrite(PA8, HIGH);
-
     }
     else{
-        //peel film
-        digitalWrite(PA8, LOW);
         analogWrite(_peel1_pin, 0);
         analogWrite(_peel2_pin, 255);
-        delay(peel_time);
-        analogWrite(_peel1_pin, 0);
-        analogWrite(_peel2_pin, 0);
-        digitalWrite(PA8, HIGH);
     }
     return true;
 }
 
-void PhotonFeeder::driveTape(bool forward){
+void PhotonFeeder::drive(bool forward){
     if(forward){
         analogWrite(_drive1_pin, 0);
         analogWrite(_drive2_pin, 255);
@@ -391,14 +382,15 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // peel film based on how much we're moving
     signed long peel_time = tenths_mm * TENSION_TIME_PER_TENTH_MM;
 
-    peel(peel_time, true);
+    peel(true);
 
     // 50ms delay to not get crazy back emf
-    delay(50);
+    delay(peel_time);
 
     // unpeel just a bit to provide slack, and let it coast for a sec
-    peel(100, false);
+    peel(false);
     delay(50);
+    brakePeel();
 
     int retry_index = 0;
 
@@ -408,9 +400,9 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     else{ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
         //checkLoaded();
         for(int retry_index = 0; retry_index < _retry_limit; retry_index++){
-            driveTape(false);
+            drive(false);
             delay(50);
-            stop();
+            halt();
             if(moveInternal(true, tenths_mm)){
                 return true;
             }
@@ -425,7 +417,9 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
 
     // Next, unspool some film to give the tape slack
     signed long peel_time = (tenths_mm * TENSION_TIME_PER_TENTH_MM);
-    peel(peel_time, false);
+    peel(false);
+    delay(peel_time);
+    brakePeel();
 
     // move tape backward
     // first we overshoot by the backlash distance, then approach from the forward direction
@@ -433,7 +427,9 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     moveInternal(true, BACKLASH_COMP_TENTH_MM);
 
     //peel again to take up any slack
-    peel(200, true);
+    peel(true);
+    delay(200);
+    brakePeel();
 
     return true;
 

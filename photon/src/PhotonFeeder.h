@@ -34,11 +34,14 @@ class PhotonFeeder {
             RotaryEncoder* encoder
         );
         FeedResult getMoveResult() {return FeedResult::SUCCESS; }; // TODO Implement
+        
         // BEGIN TODO Make async
         FeedResult feedDistance(uint16_t tenths_mm, bool forward);  // Also needs to be void
-        bool peel(uint32_t peel_time, bool dir);  // In main
-        void driveTape(bool forward);  // In main
-        void brakeDrive(uint16_t brake_time);  // In main
+        bool peel(bool forward);  // In main
+        void drive(bool forward);  // In main
+        void brakePeel();
+        void brakeDrive();
+        void halt();
         bool checkLoaded();  // In main
         // END TODO Make async
 
