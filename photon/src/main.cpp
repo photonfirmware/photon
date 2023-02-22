@@ -150,12 +150,14 @@ void topShortPress(){
   //turn led green for movement
   feeder->set_rgb(false, true, false);
   // move forward 4mm
-  if(feeder->feedDistance(40, true) == PhotonFeeder::FeedResult::SUCCESS){
-    feeder->set_rgb(false, false, false);
-  }
-  else{
-    feeder->set_rgb(true, false, false);
-  }
+  feeder->feedDistance(40, true);
+  // TODO make leds reflect feed status
+  // if(feeder->feedDistance(40, true) == PhotonFeeder::FeedResult::SUCCESS){
+  //   feeder->set_rgb(false, false, false);
+  // }
+  // else{
+  //   feeder->set_rgb(true, false, false);
+  // }
 }
 
 void bottomShortPress(){

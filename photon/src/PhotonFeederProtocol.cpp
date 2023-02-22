@@ -161,13 +161,16 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
         return;
     }
 
+    uint16_t time = _feeder->calculateExpectedFeedTime(distance, forward);
+
     response = {
         .status = STATUS_OK,
+        .expectedTimeToFeed = {
+            .expectedFeedTime = time,
+        },
     };
 
     transmitResponse();
-
-    // Everything below here needs to be handled elsewhere
 
     _feeder->feedDistance(distance, forward);
 }

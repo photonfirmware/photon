@@ -69,6 +69,10 @@ struct PACKED GetFeederAddressResponse {
     uint8_t uuid[UUID_LENGTH];
 };
 
+struct PACKED FeedDistanceResponse {
+    uint16_t expectedFeedTime;
+};
+
 struct PACKED PhotonResponse {
     PhotonPacketHeader header;
     uint8_t status;
@@ -77,6 +81,7 @@ struct PACKED PhotonResponse {
         InitializeFeederResponse initializeFeeder;
         GetProtocolVersionResponse protocolVersion;
         GetFeederAddressResponse getFeederAddress;
+        FeedDistanceResponse expectedTimeToFeed;
     };
 };
 
@@ -124,7 +129,7 @@ class PhotonFeederProtocol {
         void handleIdentifyFeeder();
         void handleProgramFeederFloor();
 
-        void move(uint8_t distance, bool forwrd);
+        void move(uint8_t distance, bool forward);
         bool isInitialized();
 
         void transmitResponse(uint8_t responseSize = 0);

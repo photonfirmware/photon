@@ -33,16 +33,18 @@ class PhotonFeeder {
             uint8_t led_blue,
             RotaryEncoder* encoder
         );
-        FeedResult getMoveResult() {return FeedResult::SUCCESS; }; // TODO Implement
+
+        FeedResult getMoveResult(); 
         
         // BEGIN TODO Make async
-        FeedResult feedDistance(uint16_t tenths_mm, bool forward);  // Also needs to be void
+        void feedDistance(uint16_t tenths_mm, bool forward);  // Also needs to be void
         bool peel(bool forward);  // In main
         void drive(bool forward);  // In main
         void brakePeel();
         void brakeDrive();
         void halt();
         bool checkLoaded();  // In main
+        uint16_t calculateExpectedFeedTime(uint8_t distance, bool forward);
         // END TODO Make async
 
         void stop();  // In main
