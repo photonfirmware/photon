@@ -6,7 +6,7 @@
 typedef enum {
     STATUS_OK = 0x00,
     STATUS_WRONG_FEEDER_ID = 0x01,
-    STATUS_MOTOR_FAULT = 0x02,
+    STATUS_COULDNT_REACH = 0x02,
     STATUS_UNINITIALIZED_FEEDER = 0x03,
     STATUS_FEEDING_IN_PROGRESS = 0x04,
     STATUS_FAIL = 0x05,
@@ -192,14 +192,10 @@ void PhotonFeederProtocol::handleMoveFeedStatus() {
     case PhotonFeeder::FeedResult::SUCCESS:
         moveResponseStatus = STATUS_OK;
         break;
-
-    case PhotonFeeder::FeedResult::IN_PROGRESS:
-        moveResponseStatus = STATUS_FEEDING_IN_PROGRESS;
-        break;
     
     case PhotonFeeder::FeedResult::INVALID_LENGTH:    // For Now Handle Invalid Length & Motor Fault The Same
-    case PhotonFeeder::FeedResult::MOTOR_FAULT:
-        moveResponseStatus = STATUS_MOTOR_FAULT;
+    case PhotonFeeder::FeedResult::COULDNT_REACH:
+        moveResponseStatus = STATUS_COULDNT_REACH;
         break;
 
     case PhotonFeeder::FeedResult::UNKNOWN_ERROR:

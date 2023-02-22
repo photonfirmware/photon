@@ -23,7 +23,7 @@
 
 #define BACKLASH_COMP_TENTH_MM 10
 #define BACKWARD_FILM_SLACK_TIMEOUT 200
-#define SS_THRESHOLD 1
+#define SS_THRESHOLD 3
 
 //pid settings and gains
 #define OUTPUT_MIN 0
@@ -71,8 +71,7 @@ PhotonFeeder::PhotonFeeder(
 //-----------
 
 PhotonFeeder::FeedResult PhotonFeeder::getMoveResult(){
-    // TODO implement how we determine what to send
-    return FeedResult::SUCCESS;
+    return _lastFeedStatus;
 }
 
 uint16_t PhotonFeeder::calculateExpectedFeedTime(uint8_t distance, bool forward){
@@ -206,8 +205,8 @@ bool PhotonFeeder::checkLoaded() {
 
 }
 
-void PhotonFeeder::setEncoderPosition(uint32_t position){
-    _encoder->setPosition(position);
+void PhotonFeeder::resetEncoderPosition(){
+    _encoder->setPosition(0);
 }
 
 void PhotonFeeder::setMmPosition(uint16_t position){
@@ -226,7 +225,7 @@ void PhotonFeeder::set_rgb(bool red, bool green, bool blue) {
 //
 //-----------
 
-bool PhotonFeeder::peel(bool forward) {
+void PhotonFeeder::peel(bool forward) {
     if(forward){
         analogWrite(_peel1_pin, 255);
         analogWrite(_peel2_pin, 0);
@@ -235,7 +234,6 @@ bool PhotonFeeder::peel(bool forward) {
         analogWrite(_peel1_pin, 0);
         analogWrite(_peel2_pin, 255);
     }
-    return true;
 }
 
 void PhotonFeeder::drive(bool forward){
@@ -300,6 +298,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     int retry_index = 0;
 
     if(moveInternal(true, tenths_mm)){ //if moving tape succeeds
+        _lastFeedStatus = SUCCESS;
         return true;
     }
     else{ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
@@ -309,10 +308,12 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
             delay(50);
             halt();
             if(moveInternal(true, tenths_mm)){
+                _lastFeedStatus = SUCCESS;
                 return true;
             }
         }
     }
+    _lastFeedStatus = COULDNT_REACH;
     return false;
 }
 
@@ -335,7 +336,7 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     peel(true);
     delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
     brakePeel();
-
+    _lastFeedStatus = SUCCESS;
     return true;
 }
 
@@ -434,7 +435,7 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
         if(ss){
             ret = true;
             //update position to be the new position
-            _position = goal_mm;
+            setMmPosition(goal_mm);
             break;
         }
         // if we havent, continue to drive the PID
@@ -470,7 +471,7 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
     // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
     // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
     if(floor(goal_tick_precise) == goal_tick_precise){
-        setEncoderPosition(0);
+        resetEncoderPosition();
         setMmPosition(0);
     }
 

@@ -140,7 +140,7 @@ void lifetime(){
       counter = millis();
       //move
       feeder->feedDistance(40, true);
-      feeder->setEncoderPosition(0);
+      feeder->resetEncoderPosition();
       feeder->setMmPosition(0);
     }
   }
@@ -254,7 +254,7 @@ inline void checkButtons() {
       //stop all motors
       feeder->halt();
       //reset encoder and mm position
-      feeder->setEncoderPosition(0);
+      feeder->resetEncoderPosition();
       feeder->setMmPosition(0);
       driving = false;
       delay(5);
