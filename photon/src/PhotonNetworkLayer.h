@@ -12,7 +12,6 @@
 #include <rs485/filters/filter_by_value.h>
 #include <rs485/rs485bus.hpp>
 #include <rs485/packetizer.h>
-#include "rs485/protocols/checksums/modbus_rtu.h"
 
 #define PHOTON_NETWORK_MAX_PDU 32
 #define PHOTON_PROTOCOL_CHECKSUM_LENGTH 2

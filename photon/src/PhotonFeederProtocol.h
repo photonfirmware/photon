@@ -17,8 +17,7 @@ struct PACKED PhotonPacketHeader {
     uint8_t fromAddress;
     uint8_t packetId;
     uint8_t payloadLength;
-    uint8_t crcMSB;
-    uint8_t crcLSB;
+    uint8_t crc;
 };
 
 struct PACKED MoveCommand {

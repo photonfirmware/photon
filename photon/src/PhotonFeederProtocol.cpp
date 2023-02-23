@@ -1,6 +1,8 @@
 #include "PhotonFeederProtocol.h"
 #include "PhotonNetworkLayer.h"
 
+#include "rs485/protocols/checksums/crc8_107.h"
+
 #define MAX_PROTOCOL_VERSION 1
 
 typedef enum {
@@ -252,8 +254,9 @@ void PhotonFeederProtocol::handleIdentifyFeeder() {
 void PhotonFeederProtocol::handleProgramFeederFloor() {
     bool addressWritten = _feederFloor->write_floor_address(command.programFeederFloorAddress.address);
 
+    uint8_t feederStatus = addressWritten ? STATUS_OK : STATUS_FAIL;
     response = {
-        .status = addressWritten ? STATUS_OK : STATUS_FAIL,
+        .status = feederStatus,
     };
 
     transmitResponse();
@@ -271,7 +274,7 @@ void PhotonFeederProtocol::transmitResponse(uint8_t responseSize) {
             .payloadLength = responseSize,
     };
 
-    ModbusRTUChecksum crc;
+    CRC8_107 crc;
 
     crc.add(response.header.toAddress);
     crc.add(response.header.fromAddress);
@@ -282,9 +285,7 @@ void PhotonFeederProtocol::transmitResponse(uint8_t responseSize) {
         crc.add(responseBuffer[sizeof(PhotonPacketHeader) + i]);
     }
 
-    uint16_t crc16 = crc;
-    response.header.crcMSB = (uint8_t) crc16 >> 8;
-    response.header.crcLSB = (uint8_t) crc16;
+    response.header.crc = crc;
 
     size_t totalPacketLength = sizeof(PhotonPacketHeader) + response.header.payloadLength;
     _network->transmitPacket(responseBuffer, totalPacketLength);
