@@ -6,7 +6,6 @@
 #ifndef MOTOR_DEPS
     #define MOTOR_DEPS
     #include <RotaryEncoder.h>
-    #include <FastPID.h>
 #endif
 
 
@@ -73,12 +72,6 @@ class PhotonFeeder {
         signed long _position;
 
         RotaryEncoder* _encoder;
-
-        float _Kp=0.5; // higher value, stronger response
-        float _Ki=0.01; // higher value, stronger response (divided by Hz)
-        float _Kd=2; // higher value, stronger response (multiplied by change in error and Hz)
-
-        int _Hz=100; // higher value, lower I, higher D
 
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);

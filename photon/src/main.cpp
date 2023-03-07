@@ -61,9 +61,6 @@ FilterByValue addressFilter(0);
 // Encoder
 RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
 
-// PID
-double Setpoint, Input, Output;
-
 // Flags
 bool drive_mode = false;
 bool driving = false;
@@ -127,7 +124,6 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_A), checkPosition, CHANGE);
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
 
-  feeder->checkLoaded();
 }
 
 void lifetime(){
@@ -148,20 +144,21 @@ void lifetime(){
 
 void topShortPress(){
   //turn led green for movement
-  feeder->set_rgb(false, true, false);
+  feeder->set_rgb(false, false, true);
   // move forward 4mm
   feeder->feedDistance(40, true);
-  // TODO make leds reflect feed status
-  // if(feeder->feedDistance(40, true) == PhotonFeeder::FeedResult::SUCCESS){
-  //   feeder->set_rgb(false, false, false);
-  // }
-  // else{
-  //   feeder->set_rgb(true, false, false);
-  // }
+
+  if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
+    feeder->set_rgb(false, true, false);
+  }
+  else{
+    feeder->set_rgb(true, false, false);
+  }
 }
 
 void bottomShortPress(){
-  feeder->checkLoaded();
+  feeder->feedDistance(40, false);
+  //feeder->feedDistance(51200,true);
 }
 
 void topLongPress(){

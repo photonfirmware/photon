@@ -5,9 +5,9 @@
 #define TENTH_MM_PER_PIP 40
 #define TIMEOUT_PER_PIP
 
-// drive motor data
+// Calculating Ticks per Tenth MM
 // gearbox has ratio of 1:1030
-// encoder has 14 ticks per revolution
+// encoder has 14 ticks per revolution (7 per channel)
 // one full rotation of the output shaft is 14*1030 = 14420 ticks
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
@@ -15,8 +15,10 @@
 // ok it seems i have some drift with the number calculated above
 // adjusting based on our drift (2.5 tenths over the course of 5600 tenths), the new rate should be 11.27065654
 
-#define TICKS_PER_TENTH_MM 11.27065654
-#define PEEL_TIME_PER_TENTH_MM 20
+//#define TICKS_PER_TENTH_MM 11.27065654
+#define TICKS_PER_TENTH_MM 11.265625
+
+#define PEEL_TIME_PER_TENTH_MM 17
 #define PEEL_BACKOFF_TIME 30
 #define TIMEOUT_TIME_PER_TENTH_MM 15
 #define BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME 200
@@ -24,6 +26,7 @@
 #define BACKLASH_COMP_TENTH_MM 10
 #define BACKWARD_FILM_SLACK_TIMEOUT 200
 #define SS_THRESHOLD 3
+// 8.8 microns per tick
 
 //pid settings and gains
 #define OUTPUT_MIN 0
@@ -136,71 +139,6 @@ bool PhotonFeeder::checkLoaded() {
 
     halt();
 
-    // set pid components based on this
-
-    //Empty should be red
-    // 0402 is consistently creen
-    // 0603 is between green and blue
-    // 0805 is
-
-    // Green
-    if(movedAt < 48){               // 0402 tape with almost no resistance
-        digitalWrite(LED_R, HIGH);
-        digitalWrite(LED_G, LOW);
-        digitalWrite(LED_B, HIGH);
-
-        // Setting PID
-        _Kp=1;
-        _Ki=0;
-        _Kd=2;
-
-    }
-
-    // Yellow
-    else if(movedAt < 180){         // 0603, a bit thicker with a bit of resistance
-        digitalWrite(LED_R, LOW);
-        digitalWrite(LED_G, LOW);
-        digitalWrite(LED_B, HIGH);
-
-        // Setting PID
-        _Kp=0.5;
-        _Ki=0.01;
-        _Kd=0.2;
-
-    }
-
-    // PINK
-    else if(movedAt < 256){         // Thicc Boi tape
-        digitalWrite(LED_R, LOW);
-        digitalWrite(LED_G, HIGH);
-        digitalWrite(LED_B, LOW);
-
-        // Setting PID
-        _Kp=1;
-        _Ki=0.01;
-        _Kd=10;
-
-    }
-
-    // RED
-    else{                           // Full tilt didn't move it, it's gonna need
-        digitalWrite(LED_R, LOW);
-        digitalWrite(LED_G, HIGH);
-        digitalWrite(LED_B, HIGH);
-
-        // Setting PID
-        _Kp=4;
-        _Ki=0;
-        _Kd=100;
-
-    }
-
-    delay(250);
-
-    digitalWrite(LED_R, HIGH);
-    digitalWrite(LED_G, HIGH);
-    digitalWrite(LED_B, HIGH);
-
     return true;
 
 }
@@ -289,7 +227,8 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // peel film based on how much we're moving
     signed long peel_time = tenths_mm * PEEL_TIME_PER_TENTH_MM;
     peel(true);
-    delay(peel_time);
+    //delay(peel_time);
+
     // unpeel just a bit to provide slack, and let it coast for a sec
     peel(false);
     delay(PEEL_BACKOFF_TIME);
@@ -298,7 +237,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     int retry_index = 0;
 
     if(moveInternal(true, tenths_mm)){ //if moving tape succeeds
-        _lastFeedStatus = SUCCESS;
+        _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
         return true;
     }
     else{ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
@@ -308,12 +247,12 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
             delay(50);
             halt();
             if(moveInternal(true, tenths_mm)){
-                _lastFeedStatus = SUCCESS;
+                _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
                 return true;
             }
         }
     }
-    _lastFeedStatus = COULDNT_REACH;
+    _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
     return false;
 }
 
@@ -336,7 +275,7 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     peel(true);
     delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
     brakePeel();
-    _lastFeedStatus = SUCCESS;
+    _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
     return true;
 }
 
@@ -353,127 +292,55 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
 *
 */
 
-    signed long goal_mm, timeout, signed_mm, current_tick, output;
+    signed long goal_mm, timeout, signed_mm, current_tick;
 
     timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
 
-    if(!forward){
-        signed_mm = tenths_mm * -1;
+    if(forward){
+        goal_mm = _position + tenths_mm;
     }
     else{
-        signed_mm = tenths_mm;
+        goal_mm = _position - tenths_mm;
     }
 
-    goal_mm = _position + signed_mm;
     // calculating goal_tick based on absolute, not relative position
     float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
-    float goal_tick = round(goal_tick_precise);
+    int goal_tick = round(goal_tick_precise);
 
     unsigned long start_time = millis();
 
-    bool ret = false;
+    // in the direction of the goal
+    drive(forward);
 
-    // float Kp=0.9, Ki=0.4, Kd=20, Hz=120;
-    // float Kp=0.9, Ki=0.3, Kd=20, Hz=120;
-
-// works well for 0402 tape at 4mm movements and 2mm movements
-// scaling set to 200-255
-    // float Kp=0.8, Ki=0.3, Kd=100, Hz=120;
-
-// works 0402 at 2mm movements
-    // float Kp=0.9, Ki=0.1, Kd=75, Hz=120;
-
-// works well for 0805 tape at 2mm and 4mm movements
-// assumes no film tension with a bit of slack peel release, and static friction comp
-    // float Kp=0.9, Ki=0.5, Kd=50, Hz=120;
-
-    //float Kp=0.9, Ki=0.1, Kd=75, Hz=120;
-
-
-    int output_bits = 8;
-    bool output_signed = true;
-    FastPID pid(_Kp, _Ki, _Kd, _Hz, output_bits, output_signed);
-    pid.setOutputRange(-255, 255);
-
-    int ss_monitor[15] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
-    int ss_index = 0;
-    bool ss;
-    bool monatonic = true;
-
-    while(millis() < start_time + timeout){
+    while(millis() < start_time + timeout + 20){
 
         current_tick = _encoder->getPosition();
-
-        // check to see if we overshoot outside of the bounds of steady state threshold
-        if((current_tick > (goal_tick + SS_THRESHOLD) && forward) || (current_tick < (goal_tick - SS_THRESHOLD) && !forward)){
-            ret = false;
-            break;
-        }
-
-        // updating steady state array with this iteration's error
-        signed long error = fabs(goal_tick - current_tick);
-        ss_monitor[ss_index] = error;
-
-        // increment steady state array's counter
-        if(ss_index >= 14){
-            ss_index = 0;
+        int error;
+        
+        if(forward){
+            error = goal_tick - current_tick;
         }
         else{
-            ss_index++;
+            error = current_tick - goal_tick;
         }
 
-        // setting ss to false if any of the values in ss_monitor are over the threshold
-        ss = true;
-        for(int i = 0; i<14; i++){
-            if(ss_monitor[i] > SS_THRESHOLD){
-                ss = false;
-                break;
+        if (error < SS_THRESHOLD){
+            brakeDrive();
+            _position = goal_mm;
+
+            // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
+            // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
+            if(floor(goal_tick_precise) == goal_tick_precise){
+                resetEncoderPosition();
+                setMmPosition(0);
             }
+
+            return true;
         }
 
-        // if we've hit steady state, return true
-        if(ss){
-            ret = true;
-            //update position to be the new position
-            setMmPosition(goal_mm);
-            break;
-        }
-        // if we havent, continue to drive the PID
-        else{
-            // PID implementation
-            output = pid.step(goal_tick, current_tick);
-
-            bool forward = true;
-            if(output < 0){
-                forward = false;
-            }
-
-            output = map(abs(output), 0, 255, 70, 255);
-
-            if(output < 71){
-                output = 0;
-            }
-
-            if(forward){
-                analogWrite(_drive1_pin, 0);
-                analogWrite(_drive2_pin, output);
-            }
-            else{
-                analogWrite(_drive1_pin, output);
-                analogWrite(_drive2_pin, 0);
-            }
-        }
     }
-
     // brake to kill any coast
     brakeDrive();
 
-    // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
-    // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-    if(floor(goal_tick_precise) == goal_tick_precise){
-        resetEncoderPosition();
-        setMmPosition(0);
-    }
-
-    return ret;
+    return false;
 }

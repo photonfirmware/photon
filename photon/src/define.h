@@ -9,8 +9,15 @@
 #define SW1 PB1
 #define SW2 PB0
 
-#define DRIVE1   PB4
-#define DRIVE2   PB5
+// PVT Motors (Long Shaft, Long Cable)
+// #define DRIVE1   PB4
+// #define DRIVE2   PB5
+
+// MP Motors (Short Shaft, Short Cable)
+#define DRIVE1   PB5 
+#define DRIVE2   PB4
+
+
 #define PEEL1    PB3
 #define PEEL2    PA15
 
