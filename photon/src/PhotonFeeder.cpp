@@ -11,11 +11,6 @@
 // one full rotation of the output shaft is 14*1030 = 14420 ticks
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
-
-// ok it seems i have some drift with the number calculated above
-// adjusting based on our drift (2.5 tenths over the course of 5600 tenths), the new rate should be 11.27065654
-
-//#define TICKS_PER_TENTH_MM 11.27065654
 #define TICKS_PER_TENTH_MM 11.265625
 
 #define PEEL_TIME_PER_TENTH_MM 17
@@ -227,7 +222,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // peel film based on how much we're moving
     signed long peel_time = tenths_mm * PEEL_TIME_PER_TENTH_MM;
     peel(true);
-    //delay(peel_time);
+    delay(peel_time);
 
     // unpeel just a bit to provide slack, and let it coast for a sec
     peel(false);

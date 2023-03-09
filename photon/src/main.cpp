@@ -158,7 +158,8 @@ void topShortPress(){
 
 void bottomShortPress(){
   feeder->feedDistance(40, false);
-  //feeder->feedDistance(51200,true);
+  // drive forward 10 full rotations
+  // feeder->feedDistance(12800, true);
 }
 
 void topLongPress(){
