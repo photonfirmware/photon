@@ -36,8 +36,13 @@ struct PACKED VendorOptionsCommand {
     uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH];
 };
 
-struct PACKED ProgramFeederFloorAddress {
+struct PACKED ProgramFeederFloorAddressCommand {
+    uint8_t uuid[UUID_LENGTH];
     uint8_t address;
+};
+
+struct PACKED IdentifyFeederCommand {
+    uint8_t uuid[UUID_LENGTH];
 };
 
 struct PACKED PhotonCommand {
@@ -48,7 +53,7 @@ struct PACKED PhotonCommand {
         GetFeederAddressCommand getFeederAddress;
         InitializeFeederCommand initializeFeeder;
         VendorOptionsCommand vendorOptions;
-        ProgramFeederFloorAddress programFeederFloorAddress;
+        ProgramFeederFloorAddressCommand programFeederFloorAddress;
     };
 };
 
