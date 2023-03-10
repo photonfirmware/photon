@@ -213,6 +213,9 @@ void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     bool success = (forward) ? moveForward(tenths_mm) : moveBackward(tenths_mm);
 
+    // clear serial buffer to get rid of feed status requests that came in while we were blocking
+
+
 }
 
 bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
@@ -263,15 +266,24 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
 
     // move tape backward
     // first we overshoot by the backlash distance, then approach from the forward direction
-    moveInternal(false, tenths_mm + BACKLASH_COMP_TENTH_MM);
-    moveInternal(true, BACKLASH_COMP_TENTH_MM);
-
-    //peel again to take up any slack
-    peel(true);
-    delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
-    brakePeel();
-    _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
-    return true;
+    if (moveInternal(false, tenths_mm + BACKLASH_COMP_TENTH_MM)){
+        if(moveInternal(true, BACKLASH_COMP_TENTH_MM)){
+            //peel again to take up any slack
+            peel(true);
+            delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
+            brakePeel();
+            _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
+            return true;
+        }
+        else{
+            _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+            return false;
+        }        
+    }
+    else{
+        _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+        return false;
+    }
 }
 
 bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
