@@ -70,6 +70,12 @@ bool PhotonNetworkLayer::getPacket(uint8_t* buffer, size_t maxBufferLength) {
   return true;
 }
 
+void PhotonNetworkLayer::clearPackets() {
+  while(_packetizer->hasPacket()){
+    _packetizer->clearPacket();
+  }
+}
+
 bool PhotonNetworkLayer::transmitPacket(const uint8_t *buffer, size_t buffer_length) {
     _packetizer->writePacket(buffer, buffer_length);
 

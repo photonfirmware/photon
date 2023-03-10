@@ -8,8 +8,6 @@
 #define SW1 PB1
 #define SW2 PB0
 
-
-
 #define PEEL1    PB3
 #define PEEL2    PA15
 
@@ -19,17 +17,19 @@
 
 #define RS485_BUS_BUFFER_SIZE 64
 
-//#define DEBUG
-
-#define DRIVE1   PB5 
-#define DRIVE2   PB4
-#define DRIVE_ENC_A  PB7
-#define DRIVE_ENC_B  PB6
-
 // #define PVT Motors (long shaft, long cable, manually flipping power wires)
+#define PVT
+
 #ifdef PVT
+    // PVT Motor
     #define DRIVE1   PB4
     #define DRIVE2   PB5
     #define DRIVE_ENC_A PB6
     #define DRIVE_ENC_B PB7
+#else
+    // MP Motor
+    #define DRIVE1   PB5 
+    #define DRIVE2   PB4
+    #define DRIVE_ENC_A  PB7
+    #define DRIVE_ENC_B  PB6
 #endif

@@ -175,14 +175,19 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
     transmitResponse();
 
     _feeder->feedDistance(distance, forward);
+
+    _network->clearPackets();
+
 }
 
 void PhotonFeederProtocol::handleMoveFeedForward() {
     move(command.move.distance, true);
+
 }
 
 void PhotonFeederProtocol::handleMoveFeedBackward() {
     move(command.move.distance, false);
+
 }
 
 void PhotonFeederProtocol::handleMoveFeedStatus() {

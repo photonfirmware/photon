@@ -32,6 +32,8 @@ public:
 
     bool transmitPacket(const uint8_t *buffer, size_t buffer_length);
 
+    void clearPackets();
+
 private:
     RS485Bus<RS485_BUS_BUFFER_SIZE>* _bus;
     Packetizer* _packetizer;
