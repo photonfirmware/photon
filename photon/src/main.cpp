@@ -144,12 +144,12 @@ void lifetime(){
 
 void topShortPress(){
   //turn led green for movement
-  feeder->set_rgb(false, false, true);
+  feeder->set_rgb(true, true, true);
   // move forward 4mm
   feeder->feedDistance(40, true);
 
   if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
-    feeder->set_rgb(false, true, false);
+    feeder->set_rgb(false, false, false);
   }
   else{
     feeder->set_rgb(true, false, false);
@@ -157,9 +157,17 @@ void topShortPress(){
 }
 
 void bottomShortPress(){
+  //turn led green for movement
+  feeder->set_rgb(true, true, true);
+  // move forward 4mm
   feeder->feedDistance(40, false);
-  // drive forward 10 full rotations
-  // feeder->feedDistance(12800, true);
+
+  if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
+    feeder->set_rgb(false, false, false);
+  }
+  else{
+    feeder->set_rgb(true, false, false);
+  }
 }
 
 void topLongPress(){
