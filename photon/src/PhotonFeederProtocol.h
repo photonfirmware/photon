@@ -54,6 +54,7 @@ struct PACKED PhotonCommand {
         InitializeFeederCommand initializeFeeder;
         VendorOptionsCommand vendorOptions;
         ProgramFeederFloorAddressCommand programFeederFloorAddress;
+        IdentifyFeederCommand identifyFeeder;
     };
 };
 
