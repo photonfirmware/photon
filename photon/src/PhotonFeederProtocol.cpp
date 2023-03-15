@@ -174,8 +174,10 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
 
     transmitResponse();
 
+    // perform a blocking movement
     _feeder->feedDistance(distance, forward);
 
+    // clear the serial buffer to remove any packets that came in while we were blocking
     _network->clearPackets();
 
 }

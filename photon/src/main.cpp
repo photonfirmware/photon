@@ -100,6 +100,8 @@ void bootAnimation(){
 void setup() {
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
+  pinMode(MOTOR_ENABLE, OUTPUT);
+  digitalWrite(MOTOR_ENABLE, HIGH);
 
   // Setup Feeder
   feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, LED_R, LED_G, LED_B, &encoder);

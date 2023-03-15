@@ -12,6 +12,7 @@
 #define PEEL2    PA15
 
 #define ONE_WIRE PA8
+#define MOTOR_ENABLE PA2
 
 #define LONG_PRESS_DELAY 500
 
