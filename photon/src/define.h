@@ -19,7 +19,7 @@
 #define RS485_BUS_BUFFER_SIZE 64
 
 // #define PVT Motors (long shaft, long cable, manually flipping power wires)
-#define PVT
+//#define PVT
 
 #ifdef PVT
     // PVT Motor

@@ -58,7 +58,7 @@ struct PACKED PhotonCommand {
     };
 };
 
-struct GetFeederIdResponse {
+struct PACKED GetFeederIdResponse {
     uint8_t uuid[UUID_LENGTH];
 };
 
@@ -71,7 +71,7 @@ struct PACKED GetProtocolVersionResponse {
 };
 
 struct PACKED GetFeederAddressResponse {
-    uint8_t uuid[UUID_LENGTH];
+    
 };
 
 struct PACKED FeedDistanceResponse {
