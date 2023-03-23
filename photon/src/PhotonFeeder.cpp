@@ -92,6 +92,16 @@ uint16_t PhotonFeeder::calculateExpectedFeedTime(uint8_t distance, bool forward)
     }
 }
 
+void PhotonFeeder::identify() {
+    for(int i = 0;i<3;i++){
+        set_rgb(true, true, true);
+        delay(300);
+        set_rgb(false, false, false);
+        delay(300);
+    }
+    
+}
+
 bool PhotonFeeder::checkLoaded() {
 /*  checkLoaded()
     The checkLoaded() function checks to see what's loaded in the feeder, and sets PID components appropriately.

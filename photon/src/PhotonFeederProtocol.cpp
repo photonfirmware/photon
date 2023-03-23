@@ -232,6 +232,8 @@ void PhotonFeederProtocol::handleGetFeederAddress() {
         .status = STATUS_OK,
     };
 
+    
+
     transmitResponse();
 }
 
@@ -250,17 +252,29 @@ void PhotonFeederProtocol::handleVendorOptions() {
 }
 
 void PhotonFeederProtocol::handleIdentifyFeeder() {
-    _feeder->identify();
+
+    // Check For Feeder Match
+    bool requestedUUIDMatchesMine = memcmp(command.identifyFeeder.uuid, _uuid, UUID_LENGTH) == 0;
+    if (! requestedUUIDMatchesMine) {
+        return;
+    }
 
     response = {
         .status = STATUS_OK,
     };
 
     transmitResponse();
+
+    _feeder->identify();
+
 }
 
 void PhotonFeederProtocol::handleProgramFeederFloor() {
     bool addressWritten = _feederFloor->write_floor_address(command.programFeederFloorAddress.address);
+
+    if(addressWritten){
+        _network->setLocalAddress(command.programFeederFloorAddress.address);
+    }
 
     uint8_t feederStatus = addressWritten ? STATUS_OK : STATUS_FAIL;
     response = {

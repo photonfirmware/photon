@@ -52,7 +52,7 @@ class PhotonFeeder {
         // Vendor Specific Functions
         // Should probably be virtual with hardware overriding it as well as return status
         void vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH]) {};
-        void identify() {};
+        void identify();
         
     private:
         uint8_t _drive1_pin;
