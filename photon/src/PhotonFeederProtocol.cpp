@@ -232,7 +232,7 @@ void PhotonFeederProtocol::handleGetFeederAddress() {
         .status = STATUS_OK,
     };
 
-    transmitResponse(sizeof(GetFeederAddressResponse));
+    transmitResponse();
 }
 
 void PhotonFeederProtocol::handleVendorOptions() {
