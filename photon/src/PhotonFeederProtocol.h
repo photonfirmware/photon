@@ -128,6 +128,7 @@ class PhotonFeederProtocol {
         void handleGetFeederAddress();
         void handleIdentifyFeeder();
         void handleProgramFeederFloor();
+        void handleUnitializedFeedersRespond();
 
         void move(uint8_t distance, bool forward);
         bool isInitialized();

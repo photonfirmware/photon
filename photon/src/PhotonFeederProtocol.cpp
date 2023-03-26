@@ -32,6 +32,7 @@ typedef enum {
     GET_FEEDER_ADDRESS = 0xc0,
     IDENTIFY_FEEDER = 0xc1,
     PROGRAM_FEEDER_FLOOR = 0xc2,
+    UNINITIALIZED_FEEDERS_RESPOND = 0xc3
     // EXTENDED_COMMAND = 0xff, Unused, reserved for future use
 } FeederCommand;
 
@@ -87,6 +88,8 @@ void PhotonFeederProtocol::tick() {
     case PROGRAM_FEEDER_FLOOR:
         handleProgramFeederFloor();
         break;
+    case UNINITIALIZED_FEEDERS_RESPOND:
+        handleUnitializedFeedersRespond();
     default:
         // Something has gone wrong if execution ever gets here.
         break;
@@ -282,6 +285,20 @@ void PhotonFeederProtocol::handleProgramFeederFloor() {
     };
 
     transmitResponse();
+}
+
+void PhotonFeederProtocol::handleUnitializedFeedersRespond() {
+    if (_initialized) {
+        return;  // Don't respond to this command at all since we've already been initialized
+    }
+
+    response = {
+        .status = STATUS_OK,
+    };
+
+    memcpy(response.getFeederId.uuid, _uuid, UUID_LENGTH);
+
+    transmitResponse(sizeof(GetFeederIdResponse));
 }
 
 void PhotonFeederProtocol::transmitResponse(uint8_t responseSize) {
