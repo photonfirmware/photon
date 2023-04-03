@@ -3,8 +3,8 @@
 #include "PhotonNetworkLayer.h"
 #include "FeederFloor.h"
 #include <Arduino.h>
-#include <cstring>
-#include <cstdio>
+#include <string.h>
+#include <stdio.h>
 
 
 #ifndef NATIVE
@@ -55,7 +55,7 @@ bool PhotonNetworkLayer::getPacket(uint8_t* buffer, size_t maxBufferLength) {
     return false;
   }
 
-  size_t packet_length = std::min(_packetizer->packetLength(), maxBufferLength);
+  size_t packet_length = min(_packetizer->packetLength(), maxBufferLength);
   // iterate through all bytes in RS485 object and plop them in the buffer
   for(int i = 0; i<packet_length; i++){
     buffer[i] = (*_bus)[i];

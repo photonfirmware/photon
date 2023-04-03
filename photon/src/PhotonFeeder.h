@@ -1,8 +1,6 @@
 #ifndef _PHOTON_FEEDER_H
 #define _PHOTON_FEEDER_H
 
-#include <functional>
-
 #ifndef MOTOR_DEPS
     #define MOTOR_DEPS
     #include <RotaryEncoder.h>
