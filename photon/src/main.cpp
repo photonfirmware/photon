@@ -22,7 +22,7 @@ GNU GPL v3
 
 #include <RotaryEncoder.h>
 
-#endif 
+#endif
 
 #include "FeederFloor.h"
 #include "PhotonFeeder.h"
@@ -43,9 +43,11 @@ GNU GPL v3
 
 #ifdef UNIT_TEST
 StreamFake ser();
+#elif defined(SERIAL_RX) && defined(SERIAL_TX)
+HardwareSerial ser(SERIAL_RX, SERIAL_TX);
 #else
-HardwareSerial ser(PA10, PA9);
-#endif // ARDUINO
+HardwareSerial ser = Serial;
+#endif
 
 // EEPROM
 OneWire oneWire(ONE_WIRE);

@@ -1,6 +1,9 @@
 #define DE   PA12
 #define _RE  PA11
 
+#define SERIAL_RX PA10
+#define SERIAL_TX PA9
+
 #define LED_R PA7   
 #define LED_G PA6
 #define LED_B PA4
