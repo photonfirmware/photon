@@ -45,7 +45,7 @@ jobs:
           photon-lumenpnp-${{ github.event.release.tag_name }}.elf
 
     - name: Compile Artifacts for Workflow Dispatch
-      if: github.event_name != 'release'
+      if: github.event_name != 'release' 
       run: |
         cd src && pio run
         cd .. && cp .pio/build/lumenpnp-feeder/firmware.bin photon-lumenpnp-${SHORT_SHA}.bin
