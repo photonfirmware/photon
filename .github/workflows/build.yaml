@@ -48,17 +48,13 @@ jobs:
       if: github.event_name != 'release'
       run: |
         cd photon && pio run
-        cp .pio/build/lumenpnp-feeder/firmware.bin photon-lumenpnp-${SHORT_SHA}.bin
-        cp .pio/build/lumenpnp-feeder/firmware.elf photon-lumenpnp-${SHORT_SHA}.elf
-        ls
-        cd
-        ls
+        cp .pio/build/lumenpnp-feeder/firmware.bin photon-lumenpnp-test.bin
 
     - name: Upload Artifacts to Workflow Dispatch
       if: github.event_name != 'release'
       uses: actions/upload-artifact@v2
       with:
-        name: photon-lumenpnp-${SHORT_SHA}.bin
-        path: photon/photon-lumenpnp-${SHORT_SHA}.bin
+        name: photon-lumenpnp-test.bin
+        path: photon/photon-lumenpnp-test.bin
 
 
