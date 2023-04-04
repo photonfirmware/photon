@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: Check out the PR
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
 
     - name: Select Python 3.7
       uses: actions/setup-python@v3
@@ -31,9 +31,9 @@ jobs:
     - name: Compile Artifacts for Release
       if: github.event_name == 'release'
       run: |
-        cd src && pio run
-        cd .. && cp .pio/build/lumenpnp-feeder/firmware.bin photon-lumenpnp-${{ github.event.release.tag_name }}.bin
-        cp .pio/build/lumenpnp-feeder/firmware.elf photon-lumenpnp-${{ github.event.release.tag_name }}.elf
+        cd photon && pio run
+        cp .pio/build/lumenpnp-feeder/firmware.bin ../photon-lumenpnp-${{ github.event.release.tag_name }}.bin
+        cp .pio/build/lumenpnp-feeder/firmware.elf ../photon-lumenpnp-${{ github.event.release.tag_name }}.elf
 
 
     - name: Upload Artifacts to Release
@@ -47,9 +47,9 @@ jobs:
     - name: Compile Artifacts for Workflow Dispatch
       if: github.event_name != 'release' 
       run: |
-        cd src && pio run
-        cd .. && cp .pio/build/lumenpnp-feeder/firmware.bin photon-lumenpnp-${SHORT_SHA}.bin
-        cp .pio/build/lumenpnp-feeder/firmware.bin photon-lumenpnp-${SHORT_SHA}.bin
+        cd photon && pio run
+        cp .pio/build/lumenpnp-feeder/firmware.bin ../photon-lumenpnp-${SHORT_SHA}.bin
+        cp .pio/build/lumenpnp-feeder/firmware.elf ../photon-lumenpnp-${SHORT_SHA}.elf
 
     - name: Upload Artifacts to Workflow Dispatch
       if: github.event_name != 'release'
