@@ -37,6 +37,7 @@ class PhotonFeeder {
         // Async Functions
         void peel(bool forward);
         void drive(bool forward);
+        void driveValue(bool forward, uint8_t value);
         void brakePeel();
         void brakeDrive();
         void halt();
@@ -75,7 +76,8 @@ class PhotonFeeder {
 
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);
-        bool moveInternal(bool forward, uint16_t tenths_mm);
+        bool moveForwardSequence(uint16_t tenths_mm);
+        bool moveBackwardSequence(bool forward, uint16_t tenths_mm);
 };
 
 #endif //_PHOTON_FEEDER_H

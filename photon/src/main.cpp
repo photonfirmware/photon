@@ -126,6 +126,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_A), checkPosition, CHANGE);
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
 
+  feeder->resetEncoderPosition();
+  feeder->setMmPosition(0);
+
 }
 
 void lifetime(){
@@ -148,7 +151,7 @@ void topShortPress(){
   //turn led green for movement
   feeder->set_rgb(true, true, true);
   // move forward 4mm
-  feeder->feedDistance(40, true);
+  feeder->feedDistance(80, true);
 
   if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
     feeder->set_rgb(false, false, false);

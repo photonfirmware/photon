@@ -2,30 +2,39 @@
 #include "PhotonFeeder.h"
 #include "define.h"
 
-#define TENTH_MM_PER_PIP 40
-#define TIMEOUT_PER_PIP
-
 // Calculating Ticks per Tenth MM
 // gearbox has ratio of 1:1030
 // encoder has 14 ticks per revolution (7 per channel)
 // one full rotation of the output shaft is 14*1030 = 14420 ticks
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
-#define TICKS_PER_TENTH_MM 11.265625
-
-#define PEEL_TIME_PER_TENTH_MM 17
-#define PEEL_BACKOFF_TIME 30
-#define TIMEOUT_TIME_PER_TENTH_MM 15
-#define BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME 200
-
-#define BACKLASH_COMP_TENTH_MM 10
-#define BACKWARD_FILM_SLACK_TIMEOUT 200
-#define SS_THRESHOLD 3
 // 8.8 microns per tick
+#define TICKS_PER_TENTH_MM 11.265625
+#define TENTH_MM_PER_PIP 40
 
-//pid settings and gains
-#define OUTPUT_MIN 0
-#define OUTPUT_MAX 255
+// -----------
+// Thresholds
+// -----------
+
+// number of ticks within requested tick position we should begin halting
+#define SS_THRESHOLD_TICKS 3
+// encoder ticks before reaching final position to stop peeling film to ensure driving alone sets final position
+#define ENSURE_DRIVE_FINAL_TICKS 200
+// when moving backwards, how far further backwards past requested position to approach from the back
+#define BACKLASH_COMP_TENTH_MM 10
+
+// --------
+// Timing
+// --------
+
+// how long the peel motor will peel film per tenth mm of tape requested to be driven
+#define PEEL_TIME_PER_TENTH_MM 18
+// short amount of time peel motor moves backwards to reduce tension on film after peeling
+#define PEEL_BACKOFF_TIME 30
+// amount of time we allow for each tenth mm before timeout (in ms)
+#define TIMEOUT_TIME_PER_TENTH_MM 15
+// after driving backwards, how long do we peel to take up any potential slack in the film
+#define BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME 200
 
 // Unit Tests Fail Because This Isn't Defined In ArduinoFake for some reason
 #ifndef INPUT_ANALOG
@@ -190,6 +199,17 @@ void PhotonFeeder::drive(bool forward){
     }
 }
 
+void PhotonFeeder::driveValue(bool forward, uint8_t value){
+    if(forward){
+        analogWrite(_drive1_pin, 0);
+        analogWrite(_drive2_pin, value);
+    }
+    else{
+        analogWrite(_drive1_pin, value);
+        analogWrite(_drive2_pin, 0);
+    }
+}
+
 void PhotonFeeder::brakeDrive(){
     //brings both drive pins high
     analogWrite(_drive1_pin, 255);
@@ -215,53 +235,62 @@ void PhotonFeeder::halt(){
 
 void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
-    // if (abs(tenths_mm) % TENTH_MM_PER_PIP != 0) {
-    //     // The Opulo Photon Feeder has only been tested and calibrated for moves of 4mm (One Pip) so far.
-    //     // If any other value is supplied, indicate it is invalid.
-    //     return Feeder::FeedResult::INVALID_LENGTH;
-    // }
 
     bool success = (forward) ? moveForward(tenths_mm) : moveBackward(tenths_mm);
-
-    // clear serial buffer to get rid of feed status requests that came in while we were blocking
-
 
 }
 
 bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
+    int retry_index = 0;
     // First, ensure everything is stopped
     halt();
 
-    // peel film based on how much we're moving
-    signed long peel_time = tenths_mm * PEEL_TIME_PER_TENTH_MM;
-    peel(true);
-    delay(peel_time);
+    // segment our total distance into pip chunks
+    div_t result = div(tenths_mm, TENTH_MM_PER_PIP);
 
-    // unpeel just a bit to provide slack, and let it coast for a sec
-    peel(false);
-    delay(PEEL_BACKOFF_TIME);
-    brakePeel();
-
-    int retry_index = 0;
-
-    if(moveInternal(true, tenths_mm)){ //if moving tape succeeds
-        _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
-        return true;
-    }
-    else{ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
-        //checkLoaded();
-        for(int retry_index = 0; retry_index < _retry_limit; retry_index++){
-            drive(false);
-            delay(50);
-            halt();
-            if(moveInternal(true, tenths_mm)){
-                _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
-                return true;
+    // quot is the number of 1 pip loops we run
+    for(int i = 0;i<result.quot;i++){
+        // move forward 40 tenths
+        if(!moveForwardSequence(40)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+            while(true){
+                retry_index++;
+                if(retry_index > _retry_limit){
+                    _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+                    return false;
+                }
+                drive(false);
+                delay(50);
+                halt();
+                if(moveForwardSequence(40)){
+                    break;
+                }
             }
         }
     }
-    _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
-    return false;
+
+    // rem is the value we drive in a last loop to move any remaining distance less than a pip
+    if(result.rem > 0){
+        //move forward result.rem
+        if(!moveForwardSequence(result.rem)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+            while(true){
+                retry_index++;
+                if(retry_index > _retry_limit){
+                    _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+                    return false;
+                }
+                drive(false);
+                delay(50);
+                halt();
+                if(moveForwardSequence(result.rem)){
+                    break;
+                }
+            }
+        }
+    }
+
+    _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
+    return true;
+    
 }
 
 bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
@@ -276,8 +305,8 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
 
     // move tape backward
     // first we overshoot by the backlash distance, then approach from the forward direction
-    if (moveInternal(false, tenths_mm + BACKLASH_COMP_TENTH_MM)){
-        if(moveInternal(true, BACKLASH_COMP_TENTH_MM)){
+    if (moveBackwardSequence(false, tenths_mm + BACKLASH_COMP_TENTH_MM)){
+        if(moveBackwardSequence(true, BACKLASH_COMP_TENTH_MM)){
             //peel again to take up any slack
             peel(true);
             delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
@@ -296,7 +325,82 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     }
 }
 
-bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
+bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
+/* moveForwardSequence()
+*   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
+
+    This function should only be called in increments of 40 tenths_mm. It contains all peeling and driving sequencing needed to get accurate 4 mm movements.
+ 
+*   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
+*   Because the tick count is only ever an approximation of the precise mm position, any rounding done from the mm->tick conversion will
+*   result in a signficiant amount of accrued error.
+*
+*   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the PID loop. We do this by
+*   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to
+*   absolute positioning vs. relative positioning in Marlin. Every mm->tick calculation needs to be done based on the initial 0 tick position.
+
+    returns true if we reach position within timeout, returns false if we timeout. does NOT set _lastFeedStatus.
+*
+*/
+
+    signed long goal_mm, timeout, signed_mm, current_tick;
+
+    timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
+    // doing final position math, and if driving forward, we peel at the same time
+    goal_mm = _position + tenths_mm;
+
+    // calculating goal_tick based on absolute, not relative position
+    float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
+    int goal_tick = round(goal_tick_precise);
+
+    // peel film for calculated time
+    peel(true);
+    delay(PEEL_TIME_PER_TENTH_MM * tenths_mm);
+    peel(false);
+    delay(PEEL_BACKOFF_TIME);
+    brakePeel();
+
+    // drive forward with ease in
+    for(int i=150;i<255;i=i+1){
+        driveValue(true, i);
+        delay(1);
+    }
+    drive(true);
+
+    // while we havent exceeded timeout
+    unsigned long start_time = millis();
+    while(millis() < start_time + timeout + 20){
+
+        current_tick = _encoder->getPosition();
+        
+        int error = goal_tick - current_tick;
+
+        // // if we're approaching final position, stop peeling to ensure no backlash error
+        // if(error < ENSURE_DRIVE_FINAL_TICKS){
+        //     brakePeel();
+        // }
+
+        if(error < SS_THRESHOLD_TICKS){
+            brakeDrive();
+            _position = goal_mm;
+
+            // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
+            // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
+            if(floor(goal_tick_precise) == goal_tick_precise){
+                resetEncoderPosition();
+                setMmPosition(0);
+            }
+            return true;
+        }
+
+    }
+    // brake to kill any coast
+    halt();
+
+    return false;
+}
+
+bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
 /* moveInternal()
 *   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
 *   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
@@ -309,12 +413,16 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
 *
 */
 
+
+
     signed long goal_mm, timeout, signed_mm, current_tick;
 
     timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
 
+    // doing final position math, and if driving forward, we peel at the same time
     if(forward){
         goal_mm = _position + tenths_mm;
+        peel(true);
     }
     else{
         goal_mm = _position - tenths_mm;
@@ -326,7 +434,12 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
 
     unsigned long start_time = millis();
 
-    // in the direction of the goal
+
+    // in the direction of the goal with ease in
+    for(int i=0;i<255;i=i+5){
+        driveValue(forward, i);
+        delay(1);
+    }
     drive(forward);
 
     while(millis() < start_time + timeout + 20){
@@ -336,12 +449,18 @@ bool PhotonFeeder::moveInternal(bool forward, uint16_t tenths_mm) {
         
         if(forward){
             error = goal_tick - current_tick;
+
+            // if we're approaching final position, stop peeling to ensure no backlash error
+            if(error < ENSURE_DRIVE_FINAL_TICKS){
+                brakePeel();
+            }
+
         }
         else{
             error = current_tick - goal_tick;
         }
 
-        if (error < SS_THRESHOLD){
+        if (error < SS_THRESHOLD_TICKS){
             brakeDrive();
             _position = goal_mm;
 
