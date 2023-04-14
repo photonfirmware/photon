@@ -25,6 +25,8 @@ PhotonNetworkLayer::PhotonNetworkLayer(
     _addressFilter(addressFilter),
     _feederFloor(feederFloor),
     _local_address(0xFF) {
+    packetizer->setMaxReadTimeout(50000);
+
     _local_address = _feederFloor->read_floor_address();
 
     _packetizer->setFilter(*_addressFilter);
@@ -60,9 +62,6 @@ bool PhotonNetworkLayer::getPacket(uint8_t* buffer, size_t maxBufferLength) {
   for(int i = 0; i<packet_length; i++){
     buffer[i] = (*_bus)[i];
   }
-
-  // Ideally the RS485 library handes delay
-  delay(10);
 
   // clear the packet
   _packetizer->clearPacket();
