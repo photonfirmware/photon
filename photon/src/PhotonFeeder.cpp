@@ -361,7 +361,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
     brakePeel();
 
     // drive forward with ease in
-    for(int i=150;i<255;i=i+1){
+    for(int i=150;i<255;i=i+3){
         driveValue(true, i);
         delay(1);
     }

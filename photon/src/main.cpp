@@ -80,24 +80,16 @@ void checkPosition()
   encoder.tick(); // just call tick() to check the state.
 }
 
-void bootAnimation(){
-  for(int i = 0;i<3;i++){
-    feeder->set_rgb(true, true, true);
-
-    delay(100);
-
-    feeder->set_rgb(false, false, false);
-
-    delay(100);
-  }
-
-}
-
 //-------
 //SETUP
 //-------
 
 void setup() {
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+  feeder->set_rgb(false, false, false);
+
   pinMode(SW1, INPUT_PULLUP);
   pinMode(SW2, INPUT_PULLUP);
   pinMode(MOTOR_ENABLE, OUTPUT);
@@ -107,8 +99,6 @@ void setup() {
   feeder = new PhotonFeeder(DRIVE1, DRIVE2, PEEL1, PEEL2, LED_R, LED_G, LED_B, &encoder);
   network = new PhotonNetworkLayer(&bus, &packetizer, &addressFilter, &feederFloor);
   protocol = new PhotonFeederProtocol(feeder, &feederFloor, network, UniqueID, UniqueIDsize);
-  
-  bootAnimation();
 
   byte addr = feederFloor.read_floor_address();
 
