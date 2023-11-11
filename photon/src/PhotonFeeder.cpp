@@ -157,8 +157,8 @@ bool PhotonFeeder::checkLoaded() {
 
 }
 
-void PhotonFeeder::resetEncoderPosition(){
-    _encoder->setPosition(0);
+void PhotonFeeder::resetEncoderPosition(uint16_t position){
+    _encoder->setPosition(position);
 }
 
 void PhotonFeeder::setMmPosition(uint16_t position){
@@ -387,7 +387,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
             if(floor(goal_tick_precise) == goal_tick_precise){
-                resetEncoderPosition();
+                resetEncoderPosition(current_tick - goal_tick_precise);
                 setMmPosition(0);
             }
             return true;
@@ -467,7 +467,7 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
             if(floor(goal_tick_precise) == goal_tick_precise){
-                resetEncoderPosition();
+                resetEncoderPosition(current_tick - goal_tick_precise);
                 setMmPosition(0);
             }
 

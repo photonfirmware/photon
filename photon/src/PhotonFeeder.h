@@ -44,7 +44,7 @@ class PhotonFeeder {
         void set_rgb(bool red, bool green, bool blue);
         uint16_t calculateExpectedFeedTime(uint8_t distance, bool forward);
         void setMmPosition(uint16_t position); 
-        void resetEncoderPosition();
+        void resetEncoderPosition(uint16_t position);
 
         // Blocking Functions
         void feedDistance(uint16_t tenths_mm, bool forward);
