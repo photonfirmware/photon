@@ -17,7 +17,7 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define SS_THRESHOLD_TICKS 3
+#define SS_THRESHOLD_TICKS 1
 // encoder ticks before reaching final position to stop peeling film to ensure driving alone sets final position
 #define ENSURE_DRIVE_FINAL_TICKS 200
 // when moving backwards, how far further backwards past requested position to approach from the back
@@ -333,7 +333,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
  
 *   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
 *   Because the tick count is only ever an approximation of the precise mm position, any rounding done from the mm->tick conversion will
-*   result in a signficiant amount of accrued error.
+*   result in a significant amount of accrued error.
 *
 *   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the PID loop. We do this by
 *   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to
