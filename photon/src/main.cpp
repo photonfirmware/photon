@@ -116,7 +116,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_A), checkPosition, CHANGE);
   attachInterrupt(digitalPinToInterrupt(DRIVE_ENC_B), checkPosition, CHANGE);
 
-  feeder->resetEncoderPosition();
+  feeder->resetEncoderPosition(0);
   feeder->setMmPosition(0);
 
 }
@@ -131,7 +131,7 @@ void lifetime(){
       counter = millis();
       //move
       feeder->feedDistance(40, true);
-      feeder->resetEncoderPosition();
+      feeder->resetEncoderPosition(0);
       feeder->setMmPosition(0);
     }
   }
@@ -255,7 +255,7 @@ inline void checkButtons() {
       //stop all motors
       feeder->halt();
       //reset encoder and mm position
-      feeder->resetEncoderPosition();
+      feeder->resetEncoderPosition(0);
       feeder->setMmPosition(0);
       driving = false;
       delay(5);
