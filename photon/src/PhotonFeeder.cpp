@@ -29,6 +29,8 @@
 
 // how long the peel motor will peel film per tenth mm of tape requested to be driven
 #define PEEL_TIME_PER_TENTH_MM 18
+// how long the peel motor will peel film per tenth mm of tape requested to be driven, for movements less than 30 tenths
+#define SHORT_DISTANCE_PEEL_TIME_PER_TENTH_MM 16
 // short amount of time peel motor moves backwards to reduce tension on film after peeling
 #define PEEL_BACKOFF_TIME 30
 // amount of time we allow for each tenth mm before timeout (in ms)
@@ -352,10 +354,18 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
     // calculating goal_tick based on absolute, not relative position
     float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
     int goal_tick = round(goal_tick_precise);
+    int peel_delay = 0;
+
+    if(tenths_mm < 30){
+        peel_delay = SHORT_DISTANCE_PEEL_TIME_PER_TENTH_MM * tenths_mm;
+    }
+    else{
+        peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
+    }
 
     // peel film for calculated time
     peel(true);
-    delay(PEEL_TIME_PER_TENTH_MM * tenths_mm);
+    delay(peel_delay);
     peel(false);
     delay(PEEL_BACKOFF_TIME);
     brakePeel();
