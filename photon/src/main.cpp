@@ -194,11 +194,13 @@ void bottomLongPress(){
 
 void bothLongPress(){
   //both are pressed, switching if we are driving tape or film
-  feeder->set_rgb(false, false, true);
+  
   if(drive_mode){
+    feeder->set_rgb(false, false, true);
     drive_mode = false;
   }
   else{
+    feeder->set_rgb(true, true, false);
     drive_mode = true;
   }
   while(!digitalRead(SW1) || !digitalRead(SW2)){
