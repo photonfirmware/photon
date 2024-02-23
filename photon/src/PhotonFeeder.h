@@ -38,6 +38,7 @@ class PhotonFeeder {
         void peel(bool forward);
         void drive(bool forward);
         void driveValue(bool forward, uint8_t value);
+        void driveBrakeValue(bool forward, uint8_t value);
         void brakePeel();
         void brakeDrive();
         void halt();

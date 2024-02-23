@@ -17,11 +17,13 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define SS_THRESHOLD_TICKS 1
+#define DRIVE_APPROACH_FINAL_TICKS 400
 // encoder ticks before reaching final position to stop peeling film to ensure driving alone sets final position
 #define ENSURE_DRIVE_FINAL_TICKS 200
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
+//
+#define SHORT_DISTANCE_EASE_IN_TICKS 300
 
 // --------
 // Timing
@@ -212,6 +214,17 @@ void PhotonFeeder::driveValue(bool forward, uint8_t value){
     }
 }
 
+void PhotonFeeder::driveBrakeValue(bool forward, uint8_t value){
+    if(forward){
+        analogWrite(_drive1_pin, 255-value);
+        analogWrite(_drive2_pin, 255);
+    }
+    else{
+        analogWrite(_drive1_pin, 255);
+        analogWrite(_drive2_pin, 255-value);
+    }
+}
+
 void PhotonFeeder::brakeDrive(){
     //brings both drive pins high
     analogWrite(_drive1_pin, 255);
@@ -331,7 +344,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
 /* moveForwardSequence()
 *   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
 
-    This function should only be called in increments of 40 tenths_mm. It contains all peeling and driving sequencing needed to get accurate 4 mm movements.
+    This function should only be called in increments of tenths_mm. It contains all peeling and driving sequencing needed to get accurate 4 mm movements.
  
 *   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
 *   Because the tick count is only ever an approximation of the precise mm position, any rounding done from the mm->tick conversion will
@@ -358,6 +371,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
 
     if(tenths_mm < 30){
         peel_delay = SHORT_DISTANCE_PEEL_TIME_PER_TENTH_MM * tenths_mm;
+        timeout = timeout + 1000;
     }
     else{
         peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
@@ -375,34 +389,134 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
         driveValue(true, i);
         delay(1);
     }
-    drive(true);
+    
+
+    volatile int stall_detection_ticks[20] = {1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5};
+    int stall_detection_ticks_index = 0;
+    volatile int delta = 5;
+
+    volatile int currentDriveValue = 1;
+
+    bool stall_detected = false;
 
     // while we havent exceeded timeout
     unsigned long start_time = millis();
+    unsigned long last_stall_position_sample_time = millis();
+
+    unsigned long stallCooldownTime = millis();
+    bool stallCooldown;
+
+    driveBrakeValue(true, currentDriveValue);
+
     while(millis() < start_time + timeout + 20){
 
+    // do any necessary sampling
+
+        //getting encoder position
         current_tick = _encoder->getPosition();
         
+        //calculating error
         int error = goal_tick - current_tick;
 
-        // // if we're approaching final position, stop peeling to ensure no backlash error
-        // if(error < ENSURE_DRIVE_FINAL_TICKS){
-        //     brakePeel();
-        // }
+        //updating stall detection array if it's been a minute
+        if(millis() > last_stall_position_sample_time + 1){
+            last_stall_position_sample_time = millis();
+            stall_detection_ticks[stall_detection_ticks_index] = current_tick;
 
-        if(error < SS_THRESHOLD_TICKS){
+            if(stall_detection_ticks_index > 18){
+                stall_detection_ticks_index = 0;
+            }
+            else{
+                stall_detection_ticks_index++;
+            }
+
+            int max = *std::max_element(stall_detection_ticks, stall_detection_ticks + 20);
+            int min = *std::min_element(stall_detection_ticks, stall_detection_ticks + 20);
+            delta = max-min;
+
             brakeDrive();
+
+            delta = delta;
+
+        }
+
+        //driving calculated value
+        driveBrakeValue(true, currentDriveValue);
+
+        //we've reached the final position!
+        if(error < 1){
+            
+            brakeDrive();
+            int brakeTick = _encoder->getPosition();
+
+            while (delta > 0){
+
+                //watching for steady state ticks
+                if(millis() > last_stall_position_sample_time + 1){
+
+                    //getting encoder position
+                    current_tick = _encoder->getPosition();
+
+                    last_stall_position_sample_time = millis();
+                    stall_detection_ticks[stall_detection_ticks_index] = current_tick;
+
+                    if(stall_detection_ticks_index > 18){
+                        stall_detection_ticks_index = 0;
+                    }
+                    else{
+                        stall_detection_ticks_index++;
+                    }
+
+                    int max = *std::max_element(stall_detection_ticks, stall_detection_ticks + 20);
+                    int min = *std::min_element(stall_detection_ticks, stall_detection_ticks + 20);
+                    delta = max-min;
+
+                }
+
+            }            
+
+            int ssTick = _encoder->getPosition();
+
+            volatile int drifterror = ssTick - brakeTick;
+
             _position = goal_mm;
+
+            drifterror = drifterror;
 
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
             if(floor(goal_tick_precise) == goal_tick_precise){
-                resetEncoderPosition(current_tick - goal_tick_precise);
+                resetEncoderPosition(_encoder->getPosition() - goal_tick_precise);
                 setMmPosition(0);
             }
+
+            volatile int encoderDoubleCheck = _encoder->getPosition();
+
+            
             return true;
+
         }
 
+
+
+        if(stallCooldownTime + 10 < millis()){
+            stallCooldown = false;
+        }
+
+
+        //check for stalls
+        if(delta <= 5 && stallCooldown == false){ //if stall detected
+
+            currentDriveValue = currentDriveValue + 3;
+            if(currentDriveValue > 255){
+                currentDriveValue = 255;
+            }
+
+            stallCooldown = true;
+            stallCooldownTime = millis();
+
+        }
+        
     }
     // brake to kill any coast
     halt();
@@ -470,7 +584,7 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
             error = current_tick - goal_tick;
         }
 
-        if (error < SS_THRESHOLD_TICKS){
+        if (error < 0){
             brakeDrive();
             _position = goal_mm;
 
