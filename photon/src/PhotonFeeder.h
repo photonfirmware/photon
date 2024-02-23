@@ -75,6 +75,8 @@ class PhotonFeeder {
 
         RotaryEncoder* _encoder;
 
+        uint8_t _firmware_version = 2;
+
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);
         bool moveForwardSequence(uint16_t tenths_mm);
