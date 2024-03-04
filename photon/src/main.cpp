@@ -141,7 +141,7 @@ void topShortPress(){
   //turn led green for movement
   feeder->set_rgb(true, true, true);
   // move forward 4mm
-  feeder->feedDistance(40, true);
+  feeder->feedDistance(20, true);
 
   if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
     feeder->set_rgb(false, false, false);
@@ -194,11 +194,13 @@ void bottomLongPress(){
 
 void bothLongPress(){
   //both are pressed, switching if we are driving tape or film
-  feeder->set_rgb(false, false, true);
+  
   if(drive_mode){
+    feeder->set_rgb(false, false, true);
     drive_mode = false;
   }
   else{
+    feeder->set_rgb(true, true, false);
     drive_mode = true;
   }
   while(!digitalRead(SW1) || !digitalRead(SW2)){

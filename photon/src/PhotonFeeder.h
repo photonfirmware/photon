@@ -38,6 +38,7 @@ class PhotonFeeder {
         void peel(bool forward);
         void drive(bool forward);
         void driveValue(bool forward, uint8_t value);
+        void driveBrakeValue(bool forward, uint8_t value);
         void brakePeel();
         void brakeDrive();
         void halt();
@@ -73,6 +74,8 @@ class PhotonFeeder {
         signed long _position;
 
         RotaryEncoder* _encoder;
+
+        uint8_t _firmware_version = 2;
 
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);
