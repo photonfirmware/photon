@@ -36,7 +36,6 @@ jobs:
         echo $TAG
         EDITED_TAG=${TAG//./_}
         echo $EDITED_TAG
-
         sed -i 's/#define VERSION beta/#define VERSION $EDITED_TAG/g' src/main.cpp
         head src/main.cpp
         pio run
