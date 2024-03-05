@@ -90,7 +90,11 @@ uint16_t PhotonFeeder::calculateExpectedFeedTime(uint8_t distance, bool forward)
         // - peel forward time
         // - peel backoff time
         // - expected time to drive forward assuming one attempt
+<<<<<<< Updated upstream
         return (distance * PEEL_TIME_PER_TENTH_MM) + PEEL_BACKOFF_TIME + (distance * TIMEOUT_TIME_PER_TENTH_MM) + 10;
+=======
+        return (distance * PEEL_TIME_PER_TENTH_MM) + PEEL_BACKOFF_TIME + (distance * TIMEOUT_TIME_PER_TENTH_MM) + 500;
+>>>>>>> Stashed changes
     }
     else {
         // we're calculating expected feed time of an _optimal_ backward feed command. this includes:
@@ -369,7 +373,16 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
 
     // while we havent exceeded timeout
     unsigned long start_time = millis();
+<<<<<<< Updated upstream
     while(millis() < start_time + timeout + 20){
+=======
+    
+    // setting initial drive value for the slow final approach
+    int currentDriveValue = 30;
+
+    //monitor loop
+    while(millis() < start_time + timeout + 500){
+>>>>>>> Stashed changes
 
         current_tick = _encoder->getPosition();
         

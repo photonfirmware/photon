@@ -55,7 +55,7 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
 
   // reset the 1-wire line, and return false if no chip detected
   if(!_oneWire->reset()){
-    return 0xFF;
+    return false;
   }
 
   // Send 0x3C to indicate skipping the ROM selection step; there'll only ever be one ROM on the bus

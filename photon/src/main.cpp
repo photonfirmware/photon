@@ -6,6 +6,9 @@ GNU GPL v3
 */
 
 #include "define.h"
+#include "versions.h"
+
+#define VERSION beta
 
 #ifdef UNIT_TEST
   #include <ArduinoFake.h>
@@ -137,6 +140,37 @@ void lifetime(){
   }
 }
 
+void showVersion(){
+
+  delay(500);
+
+  if(VERSION.color == 0){ // flashing red, beta
+    for(int i=0;i<VERSION.flash;i++){
+      feeder->set_rgb(true, false, false);
+      delay(250);
+      feeder->set_rgb(false, false, false);
+      delay(250);
+      
+    }
+  }
+
+  else if (VERSION.color == 1){ // flashing green, v1.X.X
+    for(int i=0;i<VERSION.flash;i++){
+      feeder->set_rgb(false, true, false);
+      delay(250);
+      feeder->set_rgb(false, false, false);
+      delay(250);
+      
+    }
+
+  }
+
+  else if (VERSION.color == 2){
+
+  }
+
+}
+
 void topShortPress(){
   //turn led green for movement
   feeder->set_rgb(true, true, true);
@@ -201,11 +235,23 @@ void bothLongPress(){
   else{
     drive_mode = true;
   }
-  while(!digitalRead(SW1) || !digitalRead(SW2)){
+
+  //if both are held for a long time, we show current version id
+  signed long timerStart = millis();
+
+  bool alreadyFlashed = false;
+
+  while( (!digitalRead(SW1) || !digitalRead(SW2))){
     //do nothing while waiting for debounce
+    if((timerStart + 2000 < millis()) && !alreadyFlashed){
+      feeder->set_rgb(false, false, false);
+      showVersion(); 
+      alreadyFlashed = true;
+    }
   }
+
   //delay for debounce
-  delay(10);
+  delay(50);
   feeder->set_rgb(false, false, false);
 }
 
