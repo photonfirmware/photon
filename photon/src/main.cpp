@@ -190,8 +190,8 @@ void topShortPress(){
 void bottomShortPress(){
   //turn led green for movement
   feeder->set_rgb(true, true, true);
-  // move forward 4mm
-  feeder->feedDistance(40, false);
+  // move forward 2mm
+  feeder->feedDistance(20, false);
 
   if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
     feeder->set_rgb(false, false, false);

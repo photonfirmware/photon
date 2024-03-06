@@ -18,8 +18,6 @@
 
 // number of ticks within requested tick position we should begin halting
 #define DRIVE_APPROACH_FINAL_TICKS 100
-// encoder ticks before reaching final position to stop peeling film to ensure driving alone sets final position
-#define ENSURE_DRIVE_FINAL_TICKS 500
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
 
@@ -29,12 +27,14 @@
 
 // how long the peel motor will peel film per tenth mm of tape requested to be driven
 #define PEEL_TIME_PER_TENTH_MM 18
+// how long the peel motor will peel film during backwards movements per tenth mm of tape requested to be driven
+#define BACKWARDS_PEEL_TIME_PER_TENTH_MM 30
 // short amount of time peel motor moves backwards to reduce tension on film after peeling
 #define PEEL_BACKOFF_TIME 30
 // amount of time we allow for each tenth mm before timeout (in ms)
 #define TIMEOUT_TIME_PER_TENTH_MM 30
 // after driving backwards, how long do we peel to take up any potential slack in the film
-#define BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME 200
+#define BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME 350
 
 // Unit Tests Fail Because This Isn't Defined In ArduinoFake for some reason
 #ifndef INPUT_ANALOG
@@ -99,7 +99,7 @@ uint16_t PhotonFeeder::calculateExpectedFeedTime(uint8_t distance, bool forward)
         // - unpeeling film time to prep for backwards movement
         // - backwards movement including backlash distance
         // - remaining film slack takeup
-        return (distance * PEEL_TIME_PER_TENTH_MM) + ((distance + (BACKLASH_COMP_TENTH_MM*2)) * TIMEOUT_TIME_PER_TENTH_MM) + BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME + 10;
+        return (distance * BACKWARDS_PEEL_TIME_PER_TENTH_MM) + ((distance + (BACKLASH_COMP_TENTH_MM*2)) * TIMEOUT_TIME_PER_TENTH_MM) + BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME + 50;
     }
 }
 
@@ -311,7 +311,7 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     halt();
 
     // Next, unspool some film to give the tape slack
-    signed long peel_time = (tenths_mm * PEEL_TIME_PER_TENTH_MM);
+    signed long peel_time = (tenths_mm * BACKWARDS_PEEL_TIME_PER_TENTH_MM);
     peel(false);
     delay(peel_time);
     brakePeel();
@@ -319,11 +319,16 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     // move tape backward
     // first we overshoot by the backlash distance, then approach from the forward direction
     if (moveBackwardSequence(false, tenths_mm + BACKLASH_COMP_TENTH_MM)){
+
+        // if this is successful, we peel film to take up any slack
+        peel(true);
+        delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
+        brakePeel();
+
+        //then drive the last little bit
         if(moveBackwardSequence(true, BACKLASH_COMP_TENTH_MM)){
             //peel again to take up any slack
-            peel(true);
-            delay(BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME);
-            brakePeel();
+            
             _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
             return true;
         }
@@ -525,16 +530,13 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
 *
 */
 
-
-
     signed long goal_mm, timeout, signed_mm, current_tick;
 
     timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
 
-    // doing final position math, and if driving forward, we peel at the same time
+    // doing final position math
     if(forward){
         goal_mm = _position + tenths_mm;
-        peel(true);
     }
     else{
         goal_mm = _position - tenths_mm;
@@ -545,7 +547,6 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
     int goal_tick = round(goal_tick_precise);
 
     unsigned long start_time = millis();
-
 
     // in the direction of the goal with ease in
     for(int i=0;i<255;i=i+5){
@@ -561,20 +562,16 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
         
         if(forward){
             error = goal_tick - current_tick;
-
-            // if we're approaching final position, stop peeling to ensure no backlash error
-            if(error < ENSURE_DRIVE_FINAL_TICKS){
-                brakePeel();
-            }
-
         }
         else{
             error = current_tick - goal_tick;
         }
-
         if (error < 0){
             brakeDrive();
             _position = goal_mm;
+
+            //delay to let position settle
+            delay(50);
 
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
