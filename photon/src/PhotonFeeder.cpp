@@ -32,7 +32,7 @@
 // short amount of time peel motor moves backwards to reduce tension on film after peeling
 #define PEEL_BACKOFF_TIME 30
 // amount of time we allow for each tenth mm before timeout (in ms)
-#define TIMEOUT_TIME_PER_TENTH_MM 30
+#define TIMEOUT_TIME_PER_TENTH_MM 40
 // after driving backwards, how long do we peel to take up any potential slack in the film
 #define BACKWARDS_FEED_FILM_SLACK_REMOVAL_TIME 350
 
