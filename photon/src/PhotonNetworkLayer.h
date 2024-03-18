@@ -4,8 +4,8 @@
 #include "define.h"
 
 #include "FeederFloor.h"
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
 #include "PhotonPacketHandler.h"
 #include "Stream.h"
 

@@ -1,8 +1,8 @@
 #ifndef _PHOTON_PROTOCOL_HANDLER_H
 #define _PHOTON_PROTOCOL_HANDLER_H
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
 
 class PhotonNetworkLayer;
 

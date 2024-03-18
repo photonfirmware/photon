@@ -106,9 +106,7 @@ bool PhotonFeederProtocol::guardInitialized() {
         return true;
     }
 
-    response = {
-        .status = STATUS_UNINITIALIZED_FEEDER,
-    };
+    response.status = STATUS_UNINITIALIZED_FEEDER;
     memcpy(response.initializeFeeder.uuid, _uuid, UUID_LENGTH);
 
     transmitResponse(sizeof(InitializeFeederResponse));
@@ -118,9 +116,7 @@ bool PhotonFeederProtocol::guardInitialized() {
 
 
 void PhotonFeederProtocol::handleGetFeederId() {
-    response = {
-        .status = STATUS_OK
-    };
+    response.status = STATUS_OK;
     memcpy(response.getFeederId.uuid, _uuid, UUID_LENGTH);
 
     transmitResponse(sizeof(GetFeederIdResponse));
@@ -130,9 +126,7 @@ void PhotonFeederProtocol::handleInitializeFeeder() {
     // Check uuid is correct, if not return a Wrong Feeder UUID error
     bool requestedUUIDMatchesMine = memcmp(command.initializeFeeder.uuid, _uuid, UUID_LENGTH) == 0;
     if (! requestedUUIDMatchesMine) {
-        response = {
-            .status = STATUS_WRONG_FEEDER_ID,
-        };
+        response.status = STATUS_WRONG_FEEDER_ID;
         memcpy(response.initializeFeeder.uuid, _uuid, UUID_LENGTH);
 
         transmitResponse(sizeof(InitializeFeederResponse));
@@ -142,21 +136,15 @@ void PhotonFeederProtocol::handleInitializeFeeder() {
     // Mark this feeder as initialized
     _initialized = true;
 
-    response = {
-        .status = STATUS_OK,
-    };
+    response.status = STATUS_OK;
     memcpy(response.initializeFeeder.uuid, _uuid, UUID_LENGTH);
 
     transmitResponse(sizeof(InitializeFeederResponse));
 }
 
 void PhotonFeederProtocol::handleGetVersion() {
-    response = {
-        .status = STATUS_OK,
-        .protocolVersion = {
-            .version = MAX_PROTOCOL_VERSION,
-        },
-    };
+    response.status = STATUS_OK;
+    response.protocolVersion.version = MAX_PROTOCOL_VERSION;
 
     transmitResponse(sizeof(GetProtocolVersionResponse));
 }
@@ -169,12 +157,8 @@ void PhotonFeederProtocol::move(uint8_t distance, bool forward) {
     uint16_t time = _feeder->calculateExpectedFeedTime(distance, forward);
     uint16_t timeMSB = (time >> 8) | (time << 8);
 
-    response = {
-        .status = STATUS_OK,
-        .expectedTimeToFeed = {
-            .expectedFeedTime = timeMSB,
-        },
-    };
+    response.status = STATUS_OK;
+    response.expectedTimeToFeed.expectedFeedTime = timeMSB;
 
     transmitResponse(sizeof(FeedDistanceResponse));
 
@@ -217,9 +201,7 @@ void PhotonFeederProtocol::handleMoveFeedStatus() {
         break;
     }
 
-    response = {
-        .status = moveResponseStatus,
-    };
+    response.status = moveResponseStatus;
 
     transmitResponse();
 }
@@ -231,11 +213,7 @@ void PhotonFeederProtocol::handleGetFeederAddress() {
         return;
     }
 
-    response = {
-        .status = STATUS_OK,
-    };
-
-    
+    response.status = STATUS_OK;
 
     transmitResponse();
 }
@@ -247,9 +225,7 @@ void PhotonFeederProtocol::handleVendorOptions() {
 
     _feeder->vendorSpecific(command.vendorOptions.options);
 
-    response = {
-        .status = STATUS_OK,
-    };
+    response.status = STATUS_OK;
 
     transmitResponse();
 }
@@ -262,9 +238,7 @@ void PhotonFeederProtocol::handleIdentifyFeeder() {
         return;
     }
 
-    response = {
-        .status = STATUS_OK,
-    };
+    response.status = STATUS_OK;
 
     transmitResponse();
 
@@ -280,9 +254,7 @@ void PhotonFeederProtocol::handleProgramFeederFloor() {
     }
 
     uint8_t feederStatus = addressWritten ? STATUS_OK : STATUS_FAIL;
-    response = {
-        .status = feederStatus,
-    };
+    response.status = feederStatus;
 
     transmitResponse();
 }
@@ -292,10 +264,7 @@ void PhotonFeederProtocol::handleUnitializedFeedersRespond() {
         return;  // Don't respond to this command at all since we've already been initialized
     }
 
-    response = {
-        .status = STATUS_OK,
-    };
-
+    response.status = STATUS_OK;
     memcpy(response.getFeederId.uuid, _uuid, UUID_LENGTH);
 
     transmitResponse(sizeof(GetFeederIdResponse));
