@@ -400,12 +400,12 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
     int tick_history[20] = {1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100};
     int tick_history_index = 0;
     int delta = 5;
-    unsigned long stallCooldownTime = millis();
+    uint32_t stallCooldownTime = millis();
     bool stallCooldown = false;
-    unsigned long last_stall_position_sample_time = millis();
+    uint32_t last_stall_position_sample_time = millis();
 
     // setting start time for measuring timeout
-    unsigned long start_time = millis();
+    uint32_t start_time = millis();
     
     // setting initial drive value for the slow final approach
     int currentDriveValue = 30;
@@ -471,7 +471,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
                 // int brakeTick = _encoder->getPosition();
 
                 // capture time at ss settle start
-                int ssStartTime = millis();
+                uint32_t ssStartTime = millis();
 
                 // sample ticks until we've hit steady state
                 while (delta > 0 && ssStartTime + 200 > millis()){
@@ -566,10 +566,10 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
         goal_tick = (uint32_t)((goal_tick_precise - 500) / 1000);   // do rounding, etc.
     }
 
-    unsigned long start_time = millis();
+    uint32_t start_time = millis();
 
     // in the direction of the goal with ease in
-    for(int i=0;i<255;i=i+5){
+    for(size_t i=0; i<255; i=i+5){
         driveValue(forward, i);
         delay(1);
     }
