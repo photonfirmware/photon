@@ -10,6 +10,7 @@
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
 // 8.8 microns per tick
 #define TICKS_PER_TENTH_MM 11.273
+#define THOUSANDTHS_TICKS_PER_TENTH_MM ((uint32_t)TICKS_PER_TENTH_MM * 1000)
 #define TENTH_MM_PER_PIP 40
 
 // -----------
@@ -368,8 +369,18 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
     goal_mm = _position + tenths_mm;
 
     // calculating goal_tick based on absolute, not relative position
-    float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
-    int goal_tick = round(goal_tick_precise);
+    //float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
+    //int goal_tick = round(goal_tick_precise);
+    
+    // fixed point math of above.
+    signed long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
+    int64_t goal_tick = 0;
+    if (goal_tick_precise > 0) {
+        goal_tick = (goal_tick_precise + 500) / 1000;   // doing rounding, etc. 
+    } else {
+        goal_tick = (goal_tick_precise - 500) / 1000;   // do rounding, etc.
+    }
+
     int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
     // peel film for calculated time
@@ -496,7 +507,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
 
                 // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
                 // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-                if(floor(goal_tick_precise) == goal_tick_precise){
+                if((goal_tick_precise % 1000) == goal_tick_precise){
                     resetEncoderPosition(_encoder->getPosition() - goal_tick_precise);
                     setMmPosition(0);
                 }
@@ -543,8 +554,17 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
     }
 
     // calculating goal_tick based on absolute, not relative position
-    float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
-    int goal_tick = round(goal_tick_precise);
+    //float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
+    //int goal_tick = round(goal_tick_precise);
+    
+    // fixed point version
+    int32_t goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
+    int32_t goal_tick = 0;
+    if (goal_tick_precise > 0) {
+        goal_tick = (uint32_t)((goal_tick_precise + 500) / 1000);   // doing rounding, etc. 
+    } else {
+        goal_tick = (uint32_t)((goal_tick_precise - 500) / 1000);   // do rounding, etc.
+    }
 
     unsigned long start_time = millis();
 
@@ -575,7 +595,7 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
 
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-            if(floor(goal_tick_precise) == goal_tick_precise){
+            if((goal_tick_precise % 1000) == 0){
                 resetEncoderPosition(current_tick - goal_tick_precise);
                 setMmPosition(0);
             }
