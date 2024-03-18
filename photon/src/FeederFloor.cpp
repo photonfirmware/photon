@@ -133,7 +133,7 @@ https://datasheets.maximintegrated.com/en/ds/DS28E07.pdf
   _oneWire->write_bytes(read_data, 3, 1);
 
   // wait for programming, we'll get alternating 1s and 0s when done
-  float timer = millis();
+  uint32_t timer = millis();
   while(true){
     if(_oneWire->read() == 0xAA){
       break;
