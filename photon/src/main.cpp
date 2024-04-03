@@ -128,8 +128,8 @@ void setup() {
 
 void lifetime(){
   // lifetime testing loop
-  unsigned long counter = millis();
-  int interval = 3000;
+  uint32_t counter = millis();
+  uint32_t interval = 3000;
   while(true){
     if(millis() > counter + interval){
       //reset counter to millis()
@@ -241,7 +241,7 @@ void bothLongPress(){
   }
 
   //if both are held for a long time, we show current version id
-  signed long timerStart = millis();
+  uint32_t timerStart = millis();
 
   bool alreadyFlashed = false;
 
