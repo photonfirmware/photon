@@ -79,7 +79,7 @@ class PhotonFeeder {
 
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);
-        bool moveForwardSequence(uint16_t tenths_mm);
+        bool moveForwardSequence(uint16_t tenths_mm, bool first_attempt);
         bool moveBackwardSequence(bool forward, uint16_t tenths_mm);
 };
 

@@ -10,6 +10,7 @@
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
 // 8.8 microns per tick
 #define TICKS_PER_TENTH_MM 11.273
+#define THOUSANDTHS_TICKS_PER_TENTH_MM ((uint32_t)(TICKS_PER_TENTH_MM * 1000))
 #define TENTH_MM_PER_PIP 40
 
 // -----------
@@ -69,6 +70,7 @@ PhotonFeeder::PhotonFeeder(
     pinMode(_led_red, OUTPUT);
     pinMode(_led_green, OUTPUT);
     pinMode(_led_blue, OUTPUT);
+
 }
 
 //-----------
@@ -264,7 +266,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // quot is the number of 1 pip loops we run
     for(int i = 0;i<result.quot;i++){
         // move forward 40 tenths
-        if(!moveForwardSequence(40)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+        if(!moveForwardSequence(40, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
             while(true){
                 retry_index++;
                 if(retry_index > _retry_limit){
@@ -274,7 +276,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
                 drive(false);
                 delay(50);
                 halt();
-                if(moveForwardSequence(40)){
+                if(moveForwardSequence(40, false)){
                     break;
                 }
             }
@@ -284,7 +286,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // rem is the value we drive in a last loop to move any remaining distance less than a pip
     if(result.rem > 0){
         //move forward result.rem
-        if(!moveForwardSequence(result.rem)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+        if(!moveForwardSequence(result.rem, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
             while(true){
                 retry_index++;
                 if(retry_index > _retry_limit){
@@ -294,7 +296,7 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
                 drive(false);
                 delay(50);
                 halt();
-                if(moveForwardSequence(result.rem)){
+                if(moveForwardSequence(result.rem, false)){
                     break;
                 }
             }
@@ -343,7 +345,7 @@ bool PhotonFeeder::moveBackward(uint16_t tenths_mm) {
     }
 }
 
-bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
+bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 /* moveForwardSequence()
 *   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
 
@@ -368,8 +370,20 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
     goal_mm = _position + tenths_mm;
 
     // calculating goal_tick based on absolute, not relative position
-    float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
-    int goal_tick = round(goal_tick_precise);
+
+    // float goal_tick_precise_f = goal_mm * TICKS_PER_TENTH_MM;
+    // volatile int goal_tick_f = round(goal_tick_precise_f);
+
+    long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
+    int goal_tick = 0;
+
+    if (goal_tick_precise > 0) {
+        goal_tick = (goal_tick_precise + 500) / 1000;   // round a positive number
+    } else {
+        goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
+    }
+
+
     int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
     // peel film for calculated time
@@ -389,18 +403,19 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
     int tick_history[20] = {1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100};
     int tick_history_index = 0;
     int delta = 5;
-    unsigned long stallCooldownTime = millis();
+    uint32_t stallCooldownTime = millis();
     bool stallCooldown = false;
-    unsigned long last_stall_position_sample_time = millis();
+    uint32_t last_stall_position_sample_time = millis();
 
     // setting start time for measuring timeout
-    unsigned long start_time = millis();
+    uint32_t start_time = millis();
     
-    // setting initial drive value for the slow final approach
-    int currentDriveValue = 30;
+    // if first attempt, setting initial drive value for the slow final approach
+    // goes full tilt if not first attempt
+    int currentDriveValue = (first_attempt) ? 30 : 255;
 
     //monitor loop
-    while(millis() < start_time + timeout + 500){
+    while(millis() < start_time + timeout + 20){
 
         //getting encoder position
         current_tick = _encoder->getPosition();
@@ -449,7 +464,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
             }
 
             //driving calculated value
-            driveBrakeValue(true, currentDriveValue);
+            driveValue(true, currentDriveValue);
 
             //we've reached the final position!
             if(error < 1){
@@ -496,7 +511,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm) {
 
                 // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
                 // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-                if(floor(goal_tick_precise) == goal_tick_precise){
+                if(goal_tick_precise == goal_tick * 1000){
                     resetEncoderPosition(_encoder->getPosition() - goal_tick_precise);
                     setMmPosition(0);
                 }
@@ -543,8 +558,17 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
     }
 
     // calculating goal_tick based on absolute, not relative position
-    float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
-    int goal_tick = round(goal_tick_precise);
+    // float goal_tick_precise = goal_mm * TICKS_PER_TENTH_MM;
+    // int goal_tick = round(goal_tick_precise);
+
+    long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
+    int goal_tick = 0;
+
+    if (goal_tick_precise > 0) {
+        goal_tick = (goal_tick_precise + 500) / 1000;   // round a positive number
+    } else {
+        goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
+    }
 
     unsigned long start_time = millis();
 

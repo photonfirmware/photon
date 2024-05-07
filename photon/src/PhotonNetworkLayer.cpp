@@ -25,11 +25,11 @@ PhotonNetworkLayer::PhotonNetworkLayer(
     _addressFilter(addressFilter),
     _feederFloor(feederFloor),
     _local_address(0xFF) {
-    packetizer->setMaxReadTimeout(50000);
-
+    
     _local_address = _feederFloor->read_floor_address();
-
     _packetizer->setFilter(*_addressFilter);
+    _packetizer->setFalsePacketVerificationTimeout(10000);
+    _packetizer->setMaxReadTimeout(50000);
     _addressFilter->preValues.allowAll();
     _addressFilter->postValues.allow(0xFF);
 
@@ -57,10 +57,9 @@ bool PhotonNetworkLayer::getPacket(uint8_t* buffer, size_t maxBufferLength) {
     return false;
   }
 
-  size_t packet_length = std::min(_packetizer->packetLength(), maxBufferLength);
-  // iterate through all bytes in RS485 object and plop them in the buffer
-  for(int i = 0; i<packet_length; i++){
-    buffer[i] = (*_bus)[i];
+  Packet packet = _packetizer->getPacket();
+  for(size_t i = packet.startIndex; i <= packet.endIndex; i++) {
+      buffer[i] = (*_bus)[i];
   }
 
   // clear the packet
