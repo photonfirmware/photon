@@ -374,7 +374,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
     // float goal_tick_precise_f = goal_mm * TICKS_PER_TENTH_MM;
     // volatile int goal_tick_f = round(goal_tick_precise_f);
 
-    long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
+    signed long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
     int goal_tick = 0;
 
     if (goal_tick_precise > 0) {
@@ -382,7 +382,6 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
     } else {
         goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
     }
-
 
     int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
@@ -475,7 +474,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
                 // int brakeTick = _encoder->getPosition();
 
                 // capture time at ss settle start
-                int ssStartTime = millis();
+                uint32_t ssStartTime = millis();
 
                 // sample ticks until we've hit steady state
                 while (delta > 0 && ssStartTime + 200 > millis()){
@@ -570,10 +569,10 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
         goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
     }
 
-    unsigned long start_time = millis();
+    uint32_t start_time = millis();
 
     // in the direction of the goal with ease in
-    for(int i=0;i<255;i=i+5){
+    for(size_t i=0; i<255; i=i+5){
         driveValue(forward, i);
         delay(1);
     }
@@ -599,8 +598,8 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
 
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-            if(floor(goal_tick_precise) == goal_tick_precise){
-                resetEncoderPosition(current_tick - goal_tick_precise);
+            if((goal_tick_precise % 1000) == 0){
+                resetEncoderPosition(current_tick - goal_tick);
                 setMmPosition(0);
             }
 
