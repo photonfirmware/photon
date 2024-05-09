@@ -377,13 +377,17 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
     signed long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
     int goal_tick = 0;
 
-    if (goal_tick_precise > 0) {
+    if (goal_tick_precise >= 0) {
         goal_tick = (goal_tick_precise + 500) / 1000;   // round a positive number
     } else {
         goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
     }
 
-    int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
+    volatile int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
+
+    delay(1);
+
+    delay(1);
 
     // peel film for calculated time
     peel(true);
@@ -511,7 +515,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
                 // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
                 // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
                 if(goal_tick_precise == goal_tick * 1000){
-                    resetEncoderPosition(_encoder->getPosition() - goal_tick_precise);
+                    resetEncoderPosition(_encoder->getPosition() - goal_tick);
                     setMmPosition(0);
                 }
 
