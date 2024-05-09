@@ -383,11 +383,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
         goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
     }
 
-    volatile int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
-
-    delay(1);
-
-    delay(1);
+    int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
     // peel film for calculated time
     peel(true);
