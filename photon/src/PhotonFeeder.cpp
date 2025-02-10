@@ -346,6 +346,12 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
         if(!moveForwardSequence(40, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
             while(true){
                 retry_index++;
+
+                // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                if(retry_index + 1 == _retry_limit){
+                    _beefy_boi = true;
+                }
+
                 if(retry_index > _retry_limit){
                     _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
                     return false;
@@ -367,8 +373,8 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
             while(true){
                 retry_index++;
 
-                // if we're on our last attempt, we should absolutely be considered a beefy boi
-                if(retry_index = _retry_limit){
+                // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                if(retry_index + 1 == _retry_limit){
                     _beefy_boi = true;
                 }
 
