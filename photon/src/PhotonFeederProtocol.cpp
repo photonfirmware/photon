@@ -40,7 +40,8 @@ PhotonFeederProtocol::PhotonFeederProtocol(
     PhotonFeeder *feeder,
     FeederFloor *feederFloor,
     PhotonNetworkLayer* network,
-    const uint8_t *uuid, size_t uuid_length) :
+    const uint8_t *uuid, 
+    size_t uuid_length):
     _feeder(feeder),
     _feederFloor(feederFloor),
     _network(network),
@@ -247,6 +248,7 @@ void PhotonFeederProtocol::handleVendorOptions() {
 
     _feeder->vendorSpecific(command.vendorOptions.options);
 
+    
     response = {
         .status = STATUS_OK,
     };
