@@ -8,10 +8,10 @@ on:
 jobs:
   build:
     name: Build and Upload
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Check out the PR
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Select Python 3.7
       uses: actions/setup-python@v3
