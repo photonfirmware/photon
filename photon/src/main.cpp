@@ -144,9 +144,9 @@ void showVersion(){
 }
 
 void topShortPress(){
-  //turn led green for movement
+  //turn led white for movement
   feeder->set_rgb(true, true, true);
-  // move forward 4mm
+  // move forward 2mm
   feeder->feedDistance(20, true);
 
   if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
@@ -158,7 +158,7 @@ void topShortPress(){
 }
 
 void bottomShortPress(){
-  //turn led green for movement
+  //turn led white for movement
   feeder->set_rgb(true, true, true);
   // move forward 2mm
   feeder->feedDistance(20, false);
