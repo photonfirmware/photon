@@ -92,8 +92,12 @@ uint16_t PhotonFeeder::calculateExpectedFeedTime(uint8_t distance, bool forward)
         // - peel forward time
         // - peel backoff time
         // - expected time to drive forward assuming one attempt
-
-        return (distance * PEEL_TIME_PER_TENTH_MM) + PEEL_BACKOFF_TIME + (distance * TIMEOUT_TIME_PER_TENTH_MM) + 500;
+        if(_first_feed_since_load){
+            return (distance * PEEL_TIME_PER_TENTH_MM) + PEEL_BACKOFF_TIME + (distance * TIMEOUT_TIME_PER_TENTH_MM) + 1000;
+        } 
+        else{
+            return (distance * PEEL_TIME_PER_TENTH_MM) + PEEL_BACKOFF_TIME + (distance * TIMEOUT_TIME_PER_TENTH_MM) + 200;
+        }
 
     }
     else {
@@ -117,9 +121,8 @@ void PhotonFeeder::identify() {
 
 bool PhotonFeeder::checkLoaded() {
 /*  checkLoaded()
-    The checkLoaded() function checks to see what's loaded in the feeder, and sets PID components appropriately.
-    This gets run on first movement command after boot, after quick move, or after the protocol requests it.
-
+    The checkLoaded() function checks to see what's loaded in the feeder, and sets drive methodology appropriately.
+    This gets run on first movement command after boot, and after tape is driven through buttons
 */
 
     //takes up any backlash slack, ensures any forward movement is tape movement
@@ -157,6 +160,17 @@ bool PhotonFeeder::checkLoaded() {
 
     halt();
 
+    if(movedAt > 140){
+        _beefy_boi = true;
+        //set_rgb(true, false, false);
+        //delay(200);
+    }
+    else{
+        _beefy_boi = false;
+        //set_rgb(false, false, true);
+        //delay(200);
+    }
+
     return true;
 
 }
@@ -193,6 +207,7 @@ void PhotonFeeder::peel(bool forward) {
 }
 
 void PhotonFeeder::drive(bool forward){
+
     if(forward){
         analogWrite(_drive1_pin, 0);
         analogWrite(_drive2_pin, 255);
@@ -250,8 +265,16 @@ void PhotonFeeder::halt(){
 
 void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
+    if (_first_feed_since_load){
+        checkLoaded();
+        _first_feed_since_load = false;
+    }
+
+    set_rgb(true, true, true);
 
     bool success = (forward) ? moveForward(tenths_mm) : moveBackward(tenths_mm);
+
+    set_rgb(false, false, false);
 
 }
 
@@ -289,6 +312,12 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
         if(!moveForwardSequence(result.rem, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
             while(true){
                 retry_index++;
+
+                // if we're on our last attempt, we should absolutely be considered a beefy boi
+                if(retry_index = _retry_limit){
+                    _beefy_boi = true;
+                }
+
                 if(retry_index > _retry_limit){
                     _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
                     return false;
@@ -355,7 +384,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 *   Because the tick count is only ever an approximation of the precise mm position, any rounding done from the mm->tick conversion will
 *   result in a significant amount of accrued error.
 *
-*   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the PID loop. We do this by
+*   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the control loop. We do this by
 *   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to
 *   absolute positioning vs. relative positioning in Marlin. Every mm->tick calculation needs to be done based on the initial 0 tick position.
 
@@ -409,9 +438,17 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
     // setting start time for measuring timeout
     uint32_t start_time = millis();
     
-    // if first attempt, setting initial drive value for the slow final approach
-    // goes full tilt if not first attempt
-    int currentDriveValue = (first_attempt) ? 30 : 255;
+    // if it's not our first attempt, or it's thick tape, we drive full tilt
+    // otherwise, we drive slow to start and ease our way up to the tick
+    int currentDriveValue;
+    if(first_attempt == false || _beefy_boi == true){
+        currentDriveValue = 255;
+    }
+    else {
+        currentDriveValue = 30;
+    }
+
+    volatile int test = 0;
 
     //monitor loop
     while(millis() < start_time + timeout + 20){

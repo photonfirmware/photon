@@ -55,6 +55,8 @@ class PhotonFeeder {
         // Should probably be virtual with hardware overriding it as well as return status
         void vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH]) {};
         void identify();
+
+        bool _first_feed_since_load = true;
         
     private:
         uint8_t _drive1_pin;
@@ -68,6 +70,12 @@ class PhotonFeeder {
         uint8_t _led_blue;
 
         uint8_t _retry_limit = 3;
+
+        
+        bool _beefy_boi = false;
+        // flag for if we should just drive full tilt
+        // set when thick tape is detected
+        // reset when tape is driven fast through buttons (likely swapping tape)
 
         FeedResult _lastFeedStatus;
 
