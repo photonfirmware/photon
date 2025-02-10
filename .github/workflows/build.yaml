@@ -37,8 +37,8 @@ jobs:
         echo "Tag is: $EDITED_TAG"
         if [[ $EDITED_TAG != *"rc"* ]]; then sed -i "s/#define VERSION beta/#define VERSION $EDITED_TAG/g" src/main.cpp; fi
         pio run
-        cp .pio/build/lumenpnp-feeder/firmware.bin ../photon-lumenpnp-${{ github.event.release.tag_name }}.bin
-        cp .pio/build/lumenpnp-feeder/firmware.elf ../photon-lumenpnp-${{ github.event.release.tag_name }}.elf
+        cp .pio/build/photon-bmp/firmware.bin ../photon-lumenpnp-${{ github.event.release.tag_name }}.bin
+        cp .pio/build/photon-bmp/firmware.elf ../photon-lumenpnp-${{ github.event.release.tag_name }}.elf
 
 
     - name: Upload Artifacts to Release
@@ -50,11 +50,11 @@ jobs:
           photon-lumenpnp-${{ github.event.release.tag_name }}.elf
 
     - name: Compile Artifacts for Workflow Dispatch
-      if: github.event_name != 'release' 
+      if: github.event_name != 'release'
       run: |
         cd photon && pio run
-        cp .pio/build/lumenpnp-feeder/firmware.bin ../photon-lumenpnp-${{ env.SHORT_SHA }}.bin
-        cp .pio/build/lumenpnp-feeder/firmware.elf ../photon-lumenpnp-${{ env.SHORT_SHA }}.elf
+        cp .pio/build/photon-bmp/firmware.bin ../photon-lumenpnp-${{ env.SHORT_SHA }}.bin
+        cp .pio/build/photon-bmp/firmware.elf ../photon-lumenpnp-${{ env.SHORT_SHA }}.elf
 
     - name: Upload Artifacts to Workflow Dispatch
       if: github.event_name != 'release'
