@@ -42,7 +42,7 @@ jobs:
 
 
     - name: Upload Artifacts to Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: github.event_name == 'release'
       with:
         files: |
@@ -58,7 +58,7 @@ jobs:
 
     - name: Upload Artifacts to Workflow Dispatch
       if: github.event_name != 'release'
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: photon-lumenpnp-${{ env.SHORT_SHA }}.bin
         path: photon-lumenpnp-${{ env.SHORT_SHA }}.elf
