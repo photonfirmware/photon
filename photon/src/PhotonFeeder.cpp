@@ -15,6 +15,9 @@
 // divided by 32 teeth is 450.625 ticks per tooth
 // divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
 // 8.8 microns per tick
+
+// In reality, the gearbox has a slight deviation from the perfect 1:1030 gearing
+// Emperical testing brings our TICKS_PER_TENTH_MM to 11.273
 #define TICKS_PER_TENTH_MM 11.273
 #define THOUSANDTHS_TICKS_PER_TENTH_MM ((uint32_t)(TICKS_PER_TENTH_MM * 1000))
 #define TENTH_MM_PER_PIP 40
