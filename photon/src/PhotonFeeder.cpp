@@ -448,7 +448,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
         currentDriveValue = 30;
     }
 
-    volatile int test = 0;
+    //volatile int test = 0;
 
     //monitor loop
     while(millis() < start_time + timeout + 20){
@@ -635,8 +635,8 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
 
             // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
             // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
-            if((goal_tick_precise % 1000) == 0){
-                resetEncoderPosition(current_tick - goal_tick);
+            if(goal_tick_precise == goal_tick * 1000){
+                resetEncoderPosition(_encoder->getPosition() - goal_tick);
                 setMmPosition(0);
             }
 
