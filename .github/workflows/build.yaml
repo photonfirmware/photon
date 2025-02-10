@@ -35,7 +35,7 @@ jobs:
         TAG=${{ github.event.release.tag_name }}
         EDITED_TAG=${TAG//./_}
         echo "Tag is: $EDITED_TAG"
-        if [[ $EDITED_TAG != *"rc"* ]]; then sed -i "s/#define VERSION beta/#define VERSION $EDITED_TAG/g" src/main.cpp; fi
+        if [[ $EDITED_TAG != *"rc"* ]]; then sed -i "s/#define VERSION beta/#define VERSION $EDITED_TAG/g" src/PhotonFeeder.cpp; fi
         pio run
         cp .pio/build/photon-bmp/firmware.bin ../photon-lumenpnp-${{ github.event.release.tag_name }}.bin
         cp .pio/build/photon-bmp/firmware.elf ../photon-lumenpnp-${{ github.event.release.tag_name }}.elf
