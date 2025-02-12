@@ -1,8 +1,8 @@
 
 struct version {
-    int major;
-    int minor;
-    int patch;
+    uint8_t major;
+    uint8_t minor;
+    uint8_t patch;
 };
 
 struct version beta = {0, 0, 0};
