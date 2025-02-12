@@ -33,7 +33,7 @@ jobs:
       run: |
         export VERSION_STRING=${{ github.event.release.tag_name }}
         cd photon
-        pio run --environment photon-bmp
+        pio run
         cp .pio/build/photon-bmp/firmware.bin ../photon-lumenpnp-${{ github.event.release.tag_name }}.bin
         cp .pio/build/photon-bmp/firmware.elf ../photon-lumenpnp-${{ github.event.release.tag_name }}.elf
 
@@ -50,7 +50,7 @@ jobs:
       if: github.event_name != 'release'
       run: |
         export VERSION_STRING=debug-${{ env.SHORT_SHA }}
-        cd photon && pio run --environment photon-bmp
+        cd photon && pio run
         cp .pio/build/photon-bmp/firmware.bin ../photon-lumenpnp-${{ env.SHORT_SHA }}.bin
         cp .pio/build/photon-bmp/firmware.elf ../photon-lumenpnp-${{ env.SHORT_SHA }}.elf
 
