@@ -245,15 +245,14 @@ void PhotonFeederProtocol::handleVendorOptions() {
     if (! guardInitialized()) {
         return;
     }
-
-    _feeder->vendorSpecific(command.vendorOptions.options);
-
-    
     response = {
         .status = STATUS_OK,
+        .vendorOptions = VendorOptionsResponse(),
     };
 
-    transmitResponse();
+    _feeder->vendorSpecific(command.vendorOptions.options, response.vendorOptions.options);
+
+    transmitResponse(sizeof(VendorOptionsResponse));
 }
 
 void PhotonFeederProtocol::handleIdentifyFeeder() {

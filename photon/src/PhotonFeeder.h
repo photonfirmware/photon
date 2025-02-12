@@ -53,7 +53,7 @@ class PhotonFeeder {
 
         // Vendor Specific Functions
         // Should probably be virtual with hardware overriding it as well as return status
-        void vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH]);
+        void vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH], uint8_t* response);
         void identify();
         void showVersion();
 
