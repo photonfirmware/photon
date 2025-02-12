@@ -72,6 +72,7 @@ class PhotonFeeder {
 
         uint8_t _retry_limit = 3;
 
+        String _version = VERSION_STRING;
         
         bool _beefy_boi = false;
         // flag for if we should just drive full tilt
