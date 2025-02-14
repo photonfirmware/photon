@@ -155,21 +155,16 @@ void PhotonFeeder::vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH
 
     int len = _version.length();
 
-    // 0x00 - 0x0F is Firmware Version, section by section.
-    // characters byte_0 times 20 and byte_0 + 1 times 20 is the range
+    // Commands 0x00 - 0x0F get the firmware version string in chunks. The firmware version string may be smaller than
+    // the allotted 7 chunks, but it is null-terminated as expected.
     if(command <= 0x0F) {
+        const auto start_index = min(size_t(command) * VENDOR_SPECIFIC_OPTIONS_LENGTH, _version.length());
+        const auto chunk = _version.c_str() + start_index;
 
-        int startingIndex = command * VENDOR_SPECIFIC_OPTIONS_LENGTH;
-
-        for(int i = 0; i < VENDOR_SPECIFIC_OPTIONS_LENGTH; i++){
-            
-            if((startingIndex + i) < len){
-                char currentChar = _version.substring(startingIndex + i, startingIndex + i + 1)[0];
-                response[i] = static_cast<unsigned char>(currentChar);
-            }
-            else{
-                response[i] = 0x0;
-            }
+        // NOTE: Using strncpy here specifically because we want its behavior where it handles encountering a null byte
+        // in the src string.
+        strncpy((char*)(response), chunk, VENDOR_SPECIFIC_OPTIONS_LENGTH);
+    }
         }
     }
 
