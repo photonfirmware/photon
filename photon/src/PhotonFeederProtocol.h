@@ -70,14 +70,12 @@ struct PACKED GetProtocolVersionResponse {
     uint8_t version;
 };
 
-struct PACKED GetFirmwareVersionResponse {
-    uint8_t major;
-    uint8_t minor;
-    uint8_t patch;
-};
-
 struct PACKED FeedDistanceResponse {
     uint16_t expectedFeedTime;
+};
+
+struct PACKED VendorOptionsResponse {
+    uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH];
 };
 
 struct PACKED PhotonResponse {
@@ -87,8 +85,8 @@ struct PACKED PhotonResponse {
         GetFeederIdResponse getFeederId;
         InitializeFeederResponse initializeFeeder;
         GetProtocolVersionResponse protocolVersion;
-        GetFirmwareVersionResponse firmwareVersion;
         FeedDistanceResponse expectedTimeToFeed;
+        VendorOptionsResponse vendorOptions;
     };
 };
 
