@@ -349,7 +349,12 @@ void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     bool success = (forward) ? moveForward(tenths_mm) : moveBackward(tenths_mm);
 
-    set_rgb(false, false, false);
+    if(success){
+        set_rgb(false, false, false);
+    }
+    else{
+        set_rgb(true, false, false);
+    }
 
 }
 

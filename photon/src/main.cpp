@@ -148,13 +148,6 @@ void topShortPress(){
   feeder->set_rgb(true, true, true);
   // move forward 2mm
   feeder->feedDistance(20, true);
-
-  if (feeder->getMoveResult() == PhotonFeeder::FeedResult::SUCCESS){
-    feeder->set_rgb(false, false, false);
-  }
-  else{
-    feeder->set_rgb(true, false, false);
-  }
 }
 
 void bottomShortPress(){
