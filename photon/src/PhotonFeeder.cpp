@@ -164,9 +164,7 @@ void PhotonFeeder::vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH
         // NOTE: Using strncpy here specifically because we want its behavior where it handles encountering a null byte
         // in the src string.
         strncpy((char*)(response), chunk, VENDOR_SPECIFIC_OPTIONS_LENGTH);
-    }
-        }
-    }
+    }    
 
     switch(command){
         case 0x10:
