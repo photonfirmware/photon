@@ -7,16 +7,22 @@
 // --------------------
 
 // Calculating Ticks per Tenth MM
-// gearbox has ratio of 1:1030
-// encoder has 14 ticks per revolution (7 per channel)
-// one full rotation of the output shaft is 14*1030 = 14420 ticks
-// divided by 32 teeth is 450.625 ticks per tooth
-// divided by 40 tenths of a mm per tooth (4mm) is 11.265625 ticks per tenth mm
-// 8.8 microns per tick
+//
+// The "1:1030" gearbox is actually 1:1030.4 or 5:5152
+// Found by counting the actual teeth of the gears:
+// Ratio 1:  1:20
+// Ratio 2: 10:33
+// Ratio 3: 11:32
+// Ratio 4:  9:23
+// Ratio 5: 10:21
+//
+// Encoder has 14 ticks per revolution (7 per channel)
+// One full rotation of the output shaft is therefore 14*1030.4 = 14,425.6 ticks
+// divided by 32 teeth is 450.8 ticks per tooth
+// divided by 40 tenths of a mm per tooth (4mm) is 11.27 ticks per tenth mm
+// ~8.873 microns per tick
 
-// In reality, the gearbox has a slight deviation from the perfect 1:1030 gearing
-// Emperical testing brings our TICKS_PER_TENTH_MM to 11.273
-#define TICKS_PER_TENTH_MM 11.273
+#define TICKS_PER_TENTH_MM 11.27
 #define THOUSANDTHS_TICKS_PER_TENTH_MM ((uint32_t)(TICKS_PER_TENTH_MM * 1000))
 #define TENTH_MM_PER_PIP 40
 
