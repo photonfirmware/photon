@@ -22,7 +22,7 @@ MPL v2
 
 #include <RotaryEncoder.h>
 
-#endif 
+#endif
 
 #include "FeederFloor.h"
 #include "PhotonFeeder.h"
@@ -34,6 +34,8 @@ MPL v2
 #include <rs485/filters/filter_by_value.h>
 #include <rs485/protocols/photon.h>
 #include <rs485/packetizer.h>
+
+#include "bootloader.h"
 
 #define BAUD_RATE 57600
 
@@ -59,7 +61,7 @@ Packetizer packetizer(bus, photon_protocol);
 FilterByValue addressFilter(0);
 
 // Encoder
-RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03); 
+RotaryEncoder encoder(DRIVE_ENC_A, DRIVE_ENC_B, RotaryEncoder::LatchMode::TWO03);
 
 // Flags
 bool drive_mode = false;
@@ -197,7 +199,7 @@ void bottomLongPress(){
 
 void bothLongPress(){
   //both are pressed, switching if we are driving tape or film
-  
+
   if(drive_mode){
     feeder->set_rgb(false, false, true);
     drive_mode = false;
@@ -216,8 +218,20 @@ void bothLongPress(){
     //do nothing while waiting for debounce
     if((timerStart + 2000 < millis()) && !alreadyFlashed){
       feeder->set_rgb(false, false, false);
-      showVersion(); 
+      showVersion();
       alreadyFlashed = true;
+    }
+
+    // if held for a really long time, reboot into the bootloader
+    if((timerStart + 4000 < millis())){
+      for (int n = 0; n < 10; n++) {
+        feeder->set_rgb(!(n % 2), false, n % 2);
+        delay(100);
+      }
+    }
+    if((timerStart + 6000 < millis())){
+      feeder->set_rgb(true, false, true);
+      reboot_into_bootloader();
     }
   }
 
@@ -244,7 +258,7 @@ inline void checkButtons() {
       }
       // if bottom short press
       else{
-        bottomShortPress(); 
+        bottomShortPress();
       }
     }
     // Checking top button
@@ -264,7 +278,7 @@ inline void checkButtons() {
       // if top short press
       else{
         topShortPress();
-      }  
+      }
     }
   }
   else{
