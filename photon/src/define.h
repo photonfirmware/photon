@@ -1,36 +1,25 @@
-#define DE   PA12
-#define _RE  PA11
+#define DE   PA1
+#define _RE  PA0
 
-#define LED_R PA7   
-#define LED_G PA6
-#define LED_B PA4
+#define LED_R PB0   
+#define LED_G PB1
+#define LED_B PB4
 
-#define SW1 PB1
-#define SW2 PB0
+#define SW1 PB6
+#define SW2 PB5
 
-#define PEEL1    PB3
-#define PEEL2    PA15
+#define PEEL1    PB8
+#define PEEL2    PB9
 
 #define ONE_WIRE PA8
-#define MOTOR_ENABLE PA2
+#define MOTOR_ENABLE PB7
 
 #define LONG_PRESS_DELAY 500
 
 #define RS485_BUS_BUFFER_SIZE 64
 
-// #define PVT Motors (long shaft, long cable, manually flipping power wires)
-//#define PVT
 
-#ifdef PVT
-    // PVT Motor
-    #define DRIVE1   PB4
-    #define DRIVE2   PB5
-    #define DRIVE_ENC_A PB6
-    #define DRIVE_ENC_B PB7
-#else
-    // MP Motor
-    #define DRIVE1   PB5 
-    #define DRIVE2   PB4
-    #define DRIVE_ENC_A  PB7
-    #define DRIVE_ENC_B  PB6
-#endif
+#define DRIVE1   PA6 
+#define DRIVE2   PA7
+#define DRIVE_ENC_A  PA4
+#define DRIVE_ENC_B  PA5

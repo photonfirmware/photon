@@ -34,7 +34,7 @@
 // --------
 
 // how long the peel motor will peel film per tenth mm of tape requested to be driven
-#define PEEL_TIME_PER_TENTH_MM 18
+#define PEEL_TIME_PER_TENTH_MM 25
 // how long the peel motor will peel film during backwards movements per tenth mm of tape requested to be driven
 #define BACKWARDS_PEEL_TIME_PER_TENTH_MM 30
 // short amount of time peel motor moves backwards to reduce tension on film after peeling
