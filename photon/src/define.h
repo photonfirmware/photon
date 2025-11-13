@@ -8,8 +8,8 @@
 #define SW1 PB6
 #define SW2 PB5
 
-#define PEEL1    PB8
-#define PEEL2    PB9
+#define PEEL1    PB9
+#define PEEL2    PB8
 
 #define ONE_WIRE PA8
 #define MOTOR_ENABLE PB7
@@ -19,7 +19,7 @@
 #define RS485_BUS_BUFFER_SIZE 64
 
 
-#define DRIVE1   PA6 
-#define DRIVE2   PA7
+#define DRIVE1   PA7 
+#define DRIVE2   PA6
 #define DRIVE_ENC_A  PA4
 #define DRIVE_ENC_B  PA5

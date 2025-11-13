@@ -1,0 +1,40 @@
+{
+  "build": {
+    "core": "stm32",
+    "cpu": "cortex-m0",
+    "extra_flags": "-DSTM32F030x8",
+    "f_cpu": "48000000L",
+    "arduino": {
+        "variant_h": "variant_PHOTON_V2.h"
+    },
+    "framework_extra_flags": {
+      "arduino": "-DCUSTOM_PERIPHERAL_PINS"
+    },
+    "mcu": "stm32f030c8t6",
+    "product_line": "STM32F030x8",
+    "variant": "photon_v2"
+  },
+  "debug": {
+    "default_tools": [
+      "blackmagic"
+    ],
+    "svd_path": "STM32F030.svd"
+  },
+  "frameworks": [
+    "arduino",
+    "stm32cube"
+  ],
+  "name": "Photon V2",
+  "upload": {
+    "maximum_ram_size": 8192,
+    "maximum_size": 65536,
+    "protocol": "blackmagic",
+    "protocols": [
+      "dfu",
+      "serial",
+      "blackmagic"
+    ]
+  },
+  "url": "https://www.opulo.io/",
+  "vendor": "Opulo"
+}

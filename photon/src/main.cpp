@@ -46,7 +46,7 @@ MPL v2
 #ifdef UNIT_TEST
 StreamFake ser();
 #else
-HardwareSerial ser(PA10, PA9);
+HardwareSerial ser(PA3, PA2);
 #endif // ARDUINO
 
 // EEPROM
@@ -303,5 +303,21 @@ inline void checkForRS485Packet() {
 //------
 void loop() {
   checkButtons();
+  // if(!digitalRead(SW1) && digitalRead(SW2)){
+  //   feeder->set_rgb(true, false, false);
+  // }
+  // else if(digitalRead(SW1) && !digitalRead(SW2)){
+  //   feeder->set_rgb(false, true, false);
+  // }
+
+  // else if(!digitalRead(SW1) && !digitalRead(SW2)){
+  //   feeder->set_rgb(true, true, false);
+  // }
+  // else{
+  //   feeder->set_rgb(false, false, false);
+  // }
+
+
+
   checkForRS485Packet();
 }
