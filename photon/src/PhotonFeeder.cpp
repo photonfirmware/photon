@@ -16,7 +16,32 @@
 
 // In reality, the gearbox has a slight deviation from the perfect 1:1030 gearing
 // Emperical testing brings our TICKS_PER_TENTH_MM to 11.273
-#define TICKS_PER_TENTH_MM 11.273
+
+//new gearbox
+//1 rotation per worm gear
+//gear 1 - 21:9
+//gear 2 - 26:11
+//gear 3 - 24:10
+//gear 4 - 24:8
+//gear 5 - 26
+
+// interfaces
+// 1:21
+// 9:26
+// 11:24
+// 10:24
+// 8:26
+
+// 1:1032.4363636364
+
+// 14*1032.4363636364 = 14454.1090909096 ticks per revolution of OUTPUT
+
+// /32 teeth = 451.6909090909 ticks per tooth
+
+// /40 tenths millimeter per tooth = 11.2922727273
+
+
+#define TICKS_PER_TENTH_MM 11.292
 #define THOUSANDTHS_TICKS_PER_TENTH_MM ((uint32_t)(TICKS_PER_TENTH_MM * 1000))
 #define TENTH_MM_PER_PIP 40
 
