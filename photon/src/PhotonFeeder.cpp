@@ -499,12 +499,20 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
+    //gently drive backwards to take up backlash
+    driveValue(false, 60);
+
+    delay(15);
+
+
     // peel film for calculated time
     peel(true);
     delay(peel_delay);
     peel(false);
     delay(PEEL_BACKOFF_TIME);
     brakePeel();
+
+    brakeDrive();
 
     // drive forward with ease in
     for(int i=150;i<255;i=i+3){
