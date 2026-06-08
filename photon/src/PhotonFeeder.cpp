@@ -31,7 +31,7 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define DRIVE_APPROACH_FINAL_TICKS 100
+#define DRIVE_APPROACH_FINAL_TICKS 300
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
 
@@ -280,6 +280,17 @@ void PhotonFeeder::peel(bool forward) {
     }
 }
 
+void PhotonFeeder::peelValue(bool forward, uint8_t value){
+    if(forward){
+        analogWrite(_peel1_pin, value);
+        analogWrite(_peel2_pin, 0);
+    }
+    else{
+        analogWrite(_peel1_pin, 0);
+        analogWrite(_peel2_pin, value);
+    }
+}
+
 void PhotonFeeder::drive(bool forward){
 
     if(forward){
@@ -300,6 +311,22 @@ void PhotonFeeder::driveValue(bool forward, uint8_t value){
     else{
         analogWrite(_drive1_pin, value);
         analogWrite(_drive2_pin, 0);
+    }
+}
+
+void PhotonFeeder::driveRamp(bool forward, uint8_t start, uint8_t end, uint8_t step_delay){
+
+    if(start < end){
+        for(uint8_t i = start; i < end; i++){
+            driveValue(forward, i);
+            delay(step_delay);
+        }
+    }
+    else{
+        for(uint8_t i = start; i > end; i--){
+            driveValue(forward, i);
+            delay(step_delay);
+        }
     }
 }
 
@@ -499,14 +526,22 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
+    // drive backwards to counteract backlash
+    driveRamp(false, 0, 30, 2);
+    delay(100);
+
+
+    driveValue(false, 40);
+    // delay(50);
+
     // peel film for calculated time
-    peel(true);
+    peelValue(true, 255);
     delay(peel_delay);
-    // brakePeel();
-    // delay(100);
-    // peel(false);
-    // delay(PEEL_BACKOFF_TIME);
     brakePeel();
+
+    // // ramp drive down to zero
+    // driveRamp(false, 50, 0, 2);
+    
 
     // drive forward with ease in
     for(int i=150;i<255;i=i+3){
@@ -647,6 +682,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
         // still far from final, just drive full force
         else{
             drive(true);
+            //driveValue(true, currentDriveValue);
         }
     }
     // brake to kill any coast
