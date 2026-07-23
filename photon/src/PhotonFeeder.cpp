@@ -31,7 +31,7 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define DRIVE_APPROACH_FINAL_TICKS 100
+#define DRIVE_APPROACH_FINAL_TICKS 200
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
 
@@ -44,7 +44,7 @@
 // how long the peel motor will peel film during backwards movements per tenth mm of tape requested to be driven
 #define BACKWARDS_PEEL_TIME_PER_TENTH_MM 30
 // short amount of time peel motor moves backwards to reduce tension on film after peeling
-#define PEEL_BACKOFF_TIME 30
+#define PEEL_BACKOFF_TIME 100
 // amount of time we allow for each tenth mm before timeout (in ms)
 #define TIMEOUT_TIME_PER_TENTH_MM 40
 // after driving backwards, how long do we peel to take up any potential slack in the film
@@ -501,21 +501,22 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     //gently drive backwards to take up backlash
     driveValue(false, 60);
-
     delay(15);
-
 
     // peel film for calculated time
     peel(true);
     delay(peel_delay);
+
+    // reverse direction of peel to remove any stretch tension in film
     peel(false);
     delay(PEEL_BACKOFF_TIME);
     brakePeel();
 
+    // stop backwards drive to prevent backlash
     brakeDrive();
 
     // drive forward with ease in
-    for(int i=150;i<255;i=i+3){
+    for(int i=0;i<30;i=i+3){
         driveValue(true, i);
         delay(1);
     }
@@ -652,6 +653,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
         // still far from final, just drive full force
         else{
+            //driveValue(true, currentDriveValue);
             drive(true);
         }
     }
