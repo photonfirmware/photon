@@ -102,6 +102,8 @@ void setup() {
   network = new PhotonNetworkLayer(&bus, &packetizer, &addressFilter, &feederFloor);
   protocol = new PhotonFeederProtocol(feeder, &feederFloor, network, UniqueID, UniqueIDsize);
 
+  delay(200);
+  
   byte addr = feederFloor.read_floor_address();
 
   if(addr == 0xFF){ // not detected, turn red

@@ -31,7 +31,7 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define DRIVE_APPROACH_FINAL_TICKS 100
+#define DRIVE_APPROACH_FINAL_TICKS 300
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
 
@@ -367,7 +367,7 @@ void PhotonFeeder::halt(){
 void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     if (_first_feed_since_load){
-        checkLoaded();
+        //checkLoaded();
         _first_feed_since_load = false;
     }
 
@@ -526,26 +526,21 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
 
-    // drive backwards to counteract backlash
-    // driveRamp(false, 0, 40, 3);
-    // delay(200);
 
-    // delay(50);
+    int backlash_backdrive_value = 20;
+
+    //drive backwards to counteract backlash
+    driveRamp(false, 0, backlash_backdrive_value, 2);
+
+    delay(100);
 
     // peel film for calculated time
     peelValue(true, 255);
     delay(peel_delay);
     brakePeel();
 
-    // // ramp drive down to zero
-    // driveRamp(false, 50, 0, 2);
-    
-
-    // drive forward with ease in
-    for(int i=150;i<10;i=i+3){
-        driveValue(true, i);
-        delay(1);
-    }
+    // ramp drive down to zero
+    driveRamp(false, backlash_backdrive_value, 0, 2);
     
     //prepping variables for stall detection
     int tick_history[20] = {1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100};
@@ -560,20 +555,31 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     // setting start time for measuring timeout
     uint32_t start_time = millis();
+
+    int currentDriveValue = 30;
+
+    // drive forward with ease in
+    for(int i=10;i<currentDriveValue;i=i+3){
+        driveValue(true, i);
+        delay(1);
+        //set_rgb((i>>0) & 1, (i>>1) & 1, (i>>2) & 1);
+    }
     
     // if it's not our first attempt, or it's thick tape, we drive full tilt
     // otherwise, we drive slow to start and ease our way up to the tick
-    int currentDriveValue;
-    if(first_attempt == false || _beefy_boi == true){
-        currentDriveValue = 255;
-    }
-    else {
-        currentDriveValue = 30;
-    }
+    
+    // if(first_attempt == false || _beefy_boi == true){
+    //     currentDriveValue = 255;
+    // }
+    // else {
+    //     currentDriveValue = 30;
+    // }
+
+    //driveValue(true, currentDriveValue);
 
 
     //monitor loop
-    while(millis() < start_time + timeout + 8000){
+    while(millis() < start_time + timeout + 2000){
 
         // Getting encoder position
         current_tick = _encoder->getPosition();
@@ -612,12 +618,50 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
         if (error > DRIVE_APPROACH_FINAL_TICKS){
 
             // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
-            if(stallCooldownTime + 20 < millis()){
+            if(stallCooldownTime + 10 < millis()){
                 stallCooldown = false;
             }
 
             // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
             if(delta <= 2 && stallCooldown == false){ 
+
+                currentDriveValue = currentDriveValue + 10;
+                if(currentDriveValue > 255){
+                    currentDriveValue = 255;
+                }
+
+                stallCooldown = true;
+                stallCooldownTime = millis();
+
+            }
+
+            //driving calculated value
+            driveBrakeValue(true, currentDriveValue);
+
+        }
+
+        // //----------------
+        // // PHASE TWO
+        // //----------------
+        // // This phase is if we're really close to the final position, just a bit more than standard coast.
+
+        else if (error < DRIVE_APPROACH_FINAL_TICKS && error > 0){
+
+            if(first_time_phase_two){
+
+                currentDriveValue = currentDriveValue - 10;
+                driveBrakeValue(true, currentDriveValue);
+                first_time_phase_two = false;
+
+            }
+
+            // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
+            if(stallCooldownTime + 20 < millis()){
+                stallCooldown = false;
+            }
+
+            // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
+            if(delta < 1 && stallCooldown == false){ 
 
                 currentDriveValue = currentDriveValue + 2;
                 if(currentDriveValue > 255){
@@ -629,63 +673,27 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
             }
 
-            //driving calculated value
-            driveValue(true, currentDriveValue);
-
-        }
-
-        //----------------
-        // PHASE TWO
-        //----------------
-        // This phase is if we're really close to the final position, just a bit more than standard coast.
-        else if (error < DRIVE_APPROACH_FINAL_TICKS && error > 0){
-
-            if(first_time_phase_two){
-
-                currentDriveValue = currentDriveValue - 10;
-                driveValue(true, currentDriveValue);
-                first_time_phase_two = false;
-
-            }
-
-            // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
-            if(stallCooldownTime + 100 < millis()){
-                stallCooldown = false;
-            }
-
-            // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
-            if(delta < 1 && stallCooldown == false){ 
-
-                currentDriveValue = currentDriveValue + 1;
-                if(currentDriveValue > 255){
-                    currentDriveValue = 255;
-                }
-
-                stallCooldown = true;
-                stallCooldownTime = millis();
-
-            }
-
-            driveValue(true, currentDriveValue);
+            driveBrakeValue(true, currentDriveValue);
 
         }
 
         // We've reached the final position! We want to stop as hard and aggressively as possible here.
         if(error < 1){
             
-            //immediately stop
-            brakeDrive();
-
+            // grab position for the sake of measuring coast
             int brakeTick = _encoder->getPosition();
 
             // capture time at ss settle start
             uint32_t ssStartTime = millis();
 
+            // stop
+            brakeDrive();
+
             // sample ticks until we've hit steady state
-            while (delta > 0 && ssStartTime + 200 > millis()){
+            while (delta > 0 && ssStartTime + 500 > millis()){
 
                 //watching for steady state ticks
-                if(millis() > last_stall_position_sample_time + 3){
+                if(millis() > last_stall_position_sample_time + 1){
 
                     //getting encoder position
                     current_tick = _encoder->getPosition();
@@ -706,12 +714,11 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
                 }
             }            
-
             
             int ssTick = _encoder->getPosition();
             volatile int coast = ssTick - brakeTick;
 
-            // UNCOMMENT AND BREAKPOINT BELOW TO MONITOR COAST
+            // BREAKPOINT BELOW TO MONITOR COAST
             volatile int test = 0;
 
             // updating internal position to the goal position because we reached it
@@ -730,7 +737,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     }
 
-    // brake to kill any coast
+    // ensure all motors are off after failed attempt
     halt();
 
     return false;
