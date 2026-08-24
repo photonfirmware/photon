@@ -537,7 +537,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     // peel film for calculated time
     peelValue(true, 255);
-    delay(peel_delay);
+    delay(peel_delay + peel_tension_release_time);
 
     peelValue(false, 255);
     delay(peel_tension_release_time);
