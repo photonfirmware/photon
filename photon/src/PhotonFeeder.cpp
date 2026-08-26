@@ -31,7 +31,7 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define DRIVE_APPROACH_FINAL_TICKS 200
+#define DRIVE_APPROACH_FINAL_TICKS 150
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
 
@@ -191,6 +191,11 @@ void PhotonFeeder::vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH
     return;
     
     
+}
+
+void PhotonFeeder::resetTapeSettings() {
+    _beefy_boi = false;
+    _first_feed_since_load = true;
 }
 
 bool PhotonFeeder::checkLoaded() {
@@ -367,7 +372,7 @@ void PhotonFeeder::halt(){
 void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     if (_first_feed_since_load){
-        checkLoaded();
+        // checkLoaded();
         _first_feed_since_load = false;
     }
 
@@ -399,10 +404,13 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
             while(true){
                 retry_index++;
 
-                // if we're on our second to last attempt, we should absolutely be considered a beefy boi
-                if(retry_index + 1 == _retry_limit){
-                    _beefy_boi = true;
-                }
+                // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                // if(retry_index + 1 == _retry_limit){
+                //     _beefy_boi = true;
+                // }
+                
+                // if we've failed at all, switch to beefy boi
+                _beefy_boi = true;
 
                 if(retry_index > _retry_limit){
                     _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
@@ -425,10 +433,13 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
             while(true){
                 retry_index++;
 
-                // if we're on our second to last attempt, we should absolutely be considered a beefy boi
-                if(retry_index + 1 == _retry_limit){
-                    _beefy_boi = true;
-                }
+                // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                // if(retry_index + 1 == _retry_limit){
+                //     _beefy_boi = true;
+                // }
+                
+                // if we've failed at all, switch to beefy boi
+                _beefy_boi = true;
 
                 if(retry_index > _retry_limit){
                     _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
@@ -533,7 +544,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
     delay(100);
 
-    int peel_tension_release_time = 100;
+    int peel_tension_release_time = 200;
 
     // peel film for calculated time
     peelValue(true, 255);
@@ -582,7 +593,7 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
     //volatile int test = 0;
 
     //monitor loop
-    while(millis() < start_time + timeout + 5000){
+    while(millis() < start_time + timeout + 2000){
 
         // Getting encoder position
         current_tick = _encoder->getPosition();
@@ -609,75 +620,119 @@ bool PhotonFeeder::moveForwardSequence(uint16_t tenths_mm, bool first_attempt) {
 
         }
 
-        //-------------
-        // DRIVE PHASES
-        //-------------
-
-        //--------------
-        // PHASE ONE
-        //--------------
-        // If we're still a good way away, we want to drive just above our friction threshold.
-        // This means checking if we've stalled, and if we have, increase drive value.
-        if (error > DRIVE_APPROACH_FINAL_TICKS){
-
-            // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
-            if(stallCooldownTime + 20 < millis()){
-                stallCooldown = false;
+        // if we're in beefy boi mode, just drive full tilt
+        if(_beefy_boi){
+            
+            if (error > DRIVE_APPROACH_FINAL_TICKS){
+                currentDriveValue = 255;
+                driveBrakeValue(true, currentDriveValue);
             }
 
-            // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
-            if(delta <= 2 && stallCooldown == false){ 
+            else if (error < DRIVE_APPROACH_FINAL_TICKS && error > 0){
+                if(first_time_phase_two){
 
-                currentDriveValue = currentDriveValue + 3;
-                if(currentDriveValue > 255){
-                    currentDriveValue = 255;
+                    currentDriveValue = 50;
+                    driveBrakeValue(true, currentDriveValue);
+                    first_time_phase_two = false;
+
                 }
 
-                stallCooldown = true;
-                stallCooldownTime = millis();
+                // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
+                if(stallCooldownTime + 20 < millis()){
+                    stallCooldown = false;
+                }
 
+                // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
+                if(delta < 1 && stallCooldown == false){ 
+
+                    currentDriveValue = currentDriveValue + 2;
+                    if(currentDriveValue > 255){
+                        currentDriveValue = 255;
+                    }
+
+                    stallCooldown = true;
+                    stallCooldownTime = millis();
+
+                }
+
+                driveBrakeValue(true, currentDriveValue);
             }
-
-            //driving calculated value
-            driveBrakeValue(true, currentDriveValue);
 
         }
 
-        // //----------------
-        // // PHASE TWO
-        // //----------------
-        // // This phase is if we're really close to the final position, just a bit more than standard coast.
+        // If we're not in Beefy Boi mode, and the motor easily moves the tape
+        else{
 
-        else if (error < DRIVE_APPROACH_FINAL_TICKS && error > 0){
+            //-------------
+            // DRIVE PHASES
+            //-------------
 
-            if(first_time_phase_two){
+            //--------------
+            // PHASE ONE
+            //--------------
+            // If we're still a good way away, we want to drive just above our friction threshold.
+            // This means checking if we've stalled, and if we have, increase drive value.
+            if (error > DRIVE_APPROACH_FINAL_TICKS){
 
-                currentDriveValue = currentDriveValue - 10;
-                driveBrakeValue(true, currentDriveValue);
-                first_time_phase_two = false;
-
-            }
-
-            // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
-            if(stallCooldownTime + 20 < millis()){
-                stallCooldown = false;
-            }
-
-            // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
-            if(delta < 1 && stallCooldown == false){ 
-
-                currentDriveValue = currentDriveValue + 1;
-                if(currentDriveValue > 255){
-                    currentDriveValue = 255;
+                // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
+                if(stallCooldownTime + 20 < millis()){
+                    stallCooldown = false;
                 }
 
-                stallCooldown = true;
-                stallCooldownTime = millis();
+                // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
+                if(delta <= 5 && stallCooldown == false){ 
+
+                    currentDriveValue = currentDriveValue + 5;
+                    if(currentDriveValue > 255){
+                        currentDriveValue = 255;
+                    }
+
+                    stallCooldown = true;
+                    stallCooldownTime = millis();
+
+                }
+
+                //driving calculated value
+                driveBrakeValue(true, currentDriveValue);
 
             }
 
-            driveBrakeValue(true, currentDriveValue);
+            // //----------------
+            // // PHASE TWO
+            // //----------------
+            // // This phase is if we're really close to the final position, just a bit more than standard coast.
 
+            else if (error < DRIVE_APPROACH_FINAL_TICKS && error > 0){
+
+                if(first_time_phase_two){
+
+                    currentDriveValue = currentDriveValue - 10;
+                    driveBrakeValue(true, currentDriveValue);
+                    first_time_phase_two = false;
+
+                }
+
+                // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
+                if(stallCooldownTime + 20 < millis()){
+                    stallCooldown = false;
+                }
+
+                // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
+                if(delta < 1 && stallCooldown == false){ 
+
+                    currentDriveValue = currentDriveValue + 1;
+                    if(currentDriveValue > 255){
+                        currentDriveValue = 255;
+                    }
+
+                    stallCooldown = true;
+                    stallCooldownTime = millis();
+
+                }
+
+                driveBrakeValue(true, currentDriveValue);
+
+            }
         }
 
         // We've reached the final position! We want to stop as hard and aggressively as possible here.

@@ -173,7 +173,7 @@ void topLongPress(){
   }
   else{
     //resetting first feed, since we could now have a new tape type
-    feeder->_first_feed_since_load = true;
+    feeder->resetTapeSettings();
     feeder->drive(true);
   }
       // set flag for concurrency to know driving state
@@ -188,7 +188,7 @@ void bottomLongPress(){
   }
   else{
     //resetting first feed, since we could now have a new tape type
-    feeder->_first_feed_since_load = true;
+    feeder->resetTapeSettings();
     feeder->drive(false);
   }
     // set flag for concurrency to know driving state

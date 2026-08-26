@@ -48,6 +48,7 @@ class PhotonFeeder {
         uint16_t calculateExpectedFeedTime(uint8_t distance, bool forward);
         void setMmPosition(uint16_t position); 
         void resetEncoderPosition(uint16_t position);
+        void resetTapeSettings();
 
         // Blocking Functions
         void feedDistance(uint16_t tenths_mm, bool forward);
@@ -59,7 +60,6 @@ class PhotonFeeder {
         void identify();
         void showVersion();
 
-        bool _first_feed_since_load = true;
         
     private:
         uint8_t _drive1_pin;
@@ -77,6 +77,7 @@ class PhotonFeeder {
         String _version = VERSION_STRING;
         
         bool _beefy_boi = false;
+        bool _first_feed_since_load = true;
         // flag for if we should just drive full tilt
         // set when thick tape is detected
         // reset when tape is driven fast through buttons (likely swapping tape)
