@@ -45,9 +45,11 @@ MPL v2
 
 #ifdef UNIT_TEST
 StreamFake ser();
+#elif defined(STM32_CORE_VERSION) && (STM32_CORE_VERSION >= 0x03000000)
+Uart ser(PA10, PA9);
 #else
 HardwareSerial ser(PA10, PA9);
-#endif // ARDUINO
+#endif // UNIT_TEST
 
 // EEPROM
 OneWire oneWire(ONE_WIRE);
