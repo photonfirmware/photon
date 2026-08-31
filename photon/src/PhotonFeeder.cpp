@@ -397,63 +397,130 @@ bool PhotonFeeder::moveForward(uint16_t tenths_mm) {
     // segment our total distance into pip chunks
     div_t result = div(tenths_mm, TENTH_MM_PER_PIP);
 
-    // quot is the number of 1 pip loops we run
-    for(int i = 0;i<result.quot;i++){
-        // move forward 40 tenths
-        if(!moveForwardSequence(40, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
-            while(true){
-                retry_index++;
 
-                // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
-                // if(retry_index + 1 == _retry_limit){
-                //     _beefy_boi = true;
-                // }
-                
-                // if we've failed at all, switch to beefy boi
-                _beefy_boi = true;
+    // if we're feeding a distance less than or equal to 4mm, we should do it very precisely
+    if (tenths_mm <= 40){
+        // quot is the number of 1 pip loops we run
+        for(int i = 0;i<result.quot;i++){
+            // move forward 40 tenths
+            if(!moveForwardSequence(40, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+                while(true){
+                    retry_index++;
 
-                if(retry_index > _retry_limit){
-                    _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
-                    return false;
+                    // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                    // if(retry_index + 1 == _retry_limit){
+                    //     _beefy_boi = true;
+                    // }
+                    
+                    // if we've failed at all, switch to beefy boi
+                    _beefy_boi = true;
+
+                    if(retry_index > _retry_limit){
+                        _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+                        return false;
+                    }
+                    drive(false);
+                    delay(50);
+                    halt();
+                    if(moveForwardSequence(40, false)){
+                        break;
+                    }
                 }
-                drive(false);
-                delay(50);
-                halt();
-                if(moveForwardSequence(40, false)){
-                    break;
+            }
+        }
+
+        // rem is the value we drive in a last loop to move any remaining distance less than a pip
+        if(result.rem > 0){
+            //move forward result.rem
+            if(!moveForwardSequence(result.rem, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+                while(true){
+                    retry_index++;
+
+                    // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                    // if(retry_index + 1 == _retry_limit){
+                    //     _beefy_boi = true;
+                    // }
+                    
+                    // if we've failed at all, switch to beefy boi
+                    _beefy_boi = true;
+
+                    if(retry_index > _retry_limit){
+                        _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+                        return false;
+                    }
+                    drive(false);
+                    delay(50);
+                    halt();
+                    if(moveForwardSequence(result.rem, false)){
+                        break;
+                    }
                 }
             }
         }
     }
+    // if we're feeding a distance greater than 4mm, we should do it fast
+    else{
 
-    // rem is the value we drive in a last loop to move any remaining distance less than a pip
-    if(result.rem > 0){
-        //move forward result.rem
-        if(!moveForwardSequence(result.rem, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
-            while(true){
-                retry_index++;
+        // quot is the number of 1 pip loops we run
+        for(int i = 0;i<result.quot;i++){
+            // move forward 40 tenths
+            if(!moveForwardSequenceFast(40, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+                while(true){
+                    retry_index++;
 
-                // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
-                // if(retry_index + 1 == _retry_limit){
-                //     _beefy_boi = true;
-                // }
-                
-                // if we've failed at all, switch to beefy boi
-                _beefy_boi = true;
+                    // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                    // if(retry_index + 1 == _retry_limit){
+                    //     _beefy_boi = true;
+                    // }
+                    
+                    // if we've failed at all, switch to beefy boi
+                    _beefy_boi = true;
 
-                if(retry_index > _retry_limit){
-                    _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
-                    return false;
-                }
-                drive(false);
-                delay(50);
-                halt();
-                if(moveForwardSequence(result.rem, false)){
-                    break;
+                    if(retry_index > _retry_limit){
+                        _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+                        return false;
+                    }
+                    drive(false);
+                    delay(50);
+                    halt();
+                    if(moveForwardSequenceFast(40, false)){
+                        break;
+                    }
                 }
             }
         }
+
+        // rem is the value we drive in a last loop to move any remaining distance less than a pip
+        if(result.rem > 0){
+            //move forward result.rem
+            if(!moveForwardSequenceFast(result.rem, true)){ // if it fails, try again with a fresh pulse of power after moving the motor back a bit.
+                while(true){
+                    retry_index++;
+
+                    // // if we're on our second to last attempt, we should absolutely be considered a beefy boi
+                    // if(retry_index + 1 == _retry_limit){
+                    //     _beefy_boi = true;
+                    // }
+                    
+                    // if we've failed at all, switch to beefy boi
+                    _beefy_boi = true;
+
+                    if(retry_index > _retry_limit){
+                        _lastFeedStatus = PhotonFeeder::FeedResult::COULDNT_REACH;
+                        return false;
+                    }
+                    drive(false);
+                    delay(50);
+                    halt();
+                    if(moveForwardSequenceFast(result.rem, false)){
+                        break;
+                    }
+                }
+            }
+        }
+
     }
+
 
     _lastFeedStatus = PhotonFeeder::FeedResult::SUCCESS;
     return true;
@@ -878,6 +945,231 @@ bool PhotonFeeder::moveBackwardSequence(bool forward, uint16_t tenths_mm) {
     }
     // brake to kill any coast
     brakeDrive();
+
+    return false;
+}
+
+bool PhotonFeeder::moveForwardSequenceFast(uint16_t tenths_mm, bool first_attempt) {
+/* moveForwardSequence()
+*   This function actually handles the translation of the mm movement to driving the motor to the right position based on encoder ticks.
+
+    This function should only be called in increments of tenths_mm. It contains all peeling and driving sequencing needed to get accurate 4 mm movements.
+ 
+*   We can't just calculate the number of ticks we need to move for the given mm movement requested, and increment our tick count by that much.
+*   Because the tick count is only ever an approximation of the precise mm position, any rounding done from the mm->tick conversion will
+*   result in a significant amount of accrued error.
+*
+*   Instead, we need to use the _mm_ position as ground truth, and only ever use the ticks as only how we command the control loop. We do this by
+*   first finding the new requested position, then converting this to ticks _based on the startup 0 tick position_. This is similar to
+*   absolute positioning vs. relative positioning in Marlin. Every mm->tick calculation needs to be done based on the initial 0 tick position.
+
+    returns true if we reach position within timeout, returns false if we timeout. does NOT set _lastFeedStatus.
+*
+*/
+
+    signed long goal_mm, timeout, signed_mm, current_tick;
+
+    timeout = tenths_mm * TIMEOUT_TIME_PER_TENTH_MM;
+
+    goal_mm = _position + tenths_mm;
+
+    // calculating goal_tick based on absolute, not relative position
+
+    // float goal_tick_precise_f = goal_mm * TICKS_PER_TENTH_MM;
+    // volatile int goal_tick_f = round(goal_tick_precise_f);
+
+    signed long goal_tick_precise = goal_mm * THOUSANDTHS_TICKS_PER_TENTH_MM;
+    int goal_tick = 0;
+
+    if (goal_tick_precise >= 0) {
+        goal_tick = (goal_tick_precise + 500) / 1000;   // round a positive number
+    } else {
+        goal_tick = (goal_tick_precise - 500) / 1000;   // round a negative integer
+    }
+
+    int peel_delay = PEEL_TIME_PER_TENTH_MM * tenths_mm;
+
+    int backlash_backdrive_value = 20;
+
+    //drive backwards to counteract backlash
+    driveRamp(false, 0, backlash_backdrive_value, 2);
+
+    delay(100);
+
+    int peel_tension_release_time = 400;
+
+    // peel film for calculated time
+    peelValue(true, 255);
+    delay(peel_delay + peel_tension_release_time);
+
+    peelValue(false, 255);
+    delay(peel_tension_release_time);
+    brakePeel();
+
+
+    // ramp drive down to zero
+    driveRamp(false, backlash_backdrive_value, 0, 2);
+    
+    
+    //prepping variables for stall detection
+    int tick_history[20] = {1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100};
+    int tick_history_index = 0;
+    int delta = 5;
+    uint32_t stallCooldownTime = millis();
+    bool stallCooldown = false;
+    uint32_t last_stall_position_sample_time = millis();
+
+    bool first_time_phase_two = true;
+
+    // setting start time for measuring timeout
+    uint32_t start_time = millis();
+
+    int currentDriveValue = 60;
+
+    // drive forward with ease in
+    for(int i=10;i<currentDriveValue;i=i+3){
+        driveValue(true, i);
+        delay(1);
+    }
+    
+    // if it's not our first attempt, or it's thick tape, we drive full tilt
+    // otherwise, we drive slow to start and ease our way up to the tick
+    // int currentDriveValue;
+    // if(first_attempt == false || _beefy_boi == true){
+    //     currentDriveValue = 255;
+    // }
+    // else {
+    //     currentDriveValue = 30;
+    // }
+
+    //volatile int test = 0;
+
+    //monitor loop
+    while(millis() < start_time + timeout + 2000){
+
+        // Getting encoder position
+        current_tick = _encoder->getPosition();
+        
+        // Calculating error
+        int error = goal_tick - current_tick;
+
+        // Updating tick history for Stall Detection
+        if(millis() > last_stall_position_sample_time + 1){
+
+            last_stall_position_sample_time = millis();
+            tick_history[tick_history_index] = current_tick;
+
+            if(tick_history_index > 18){
+                tick_history_index = 0;
+            }
+            else{
+                tick_history_index++;
+            }
+
+            int max = *std::max_element(tick_history, tick_history + 20);
+            int min = *std::min_element(tick_history, tick_history + 20);
+            delta = max - min;
+
+        }
+
+            
+        if (error > DRIVE_APPROACH_FINAL_TICKS){
+            currentDriveValue = 255;
+            driveBrakeValue(true, currentDriveValue);
+        }
+
+        else if (error < DRIVE_APPROACH_FINAL_TICKS && error > 0){
+            if(first_time_phase_two){
+
+                currentDriveValue = 50;
+                driveBrakeValue(true, currentDriveValue);
+                first_time_phase_two = false;
+
+            }
+
+            // reset stallcooldown if it's been a minute, motor has had time to react to new drive value
+            if(stallCooldownTime + 20 < millis()){
+                stallCooldown = false;
+            }
+
+            // if stall detected, and it's been a minute since we've adjusted currentDriveValue, increase currentDriveValue
+            if(delta < 1 && stallCooldown == false){ 
+
+                currentDriveValue = currentDriveValue + 4;
+                if(currentDriveValue > 255){
+                    currentDriveValue = 255;
+                }
+
+                stallCooldown = true;
+                stallCooldownTime = millis();
+
+            }
+
+            driveBrakeValue(true, currentDriveValue);
+        }
+
+
+        // We've reached the final position! We want to stop as hard and aggressively as possible here.
+        if(error < 1){
+            
+            // grab position for the sake of measuring coast
+            int brakeTick = _encoder->getPosition();
+
+            // capture time at ss settle start
+            uint32_t ssStartTime = millis();
+
+            // stop
+            brakeDrive();
+
+            // sample ticks until we've hit steady state
+            while (delta > 0 && ssStartTime + 500 > millis()){
+
+                //watching for steady state ticks
+                if(millis() > last_stall_position_sample_time + 1){
+
+                    //getting encoder position
+                    current_tick = _encoder->getPosition();
+
+                    last_stall_position_sample_time = millis();
+                    tick_history[tick_history_index] = current_tick;
+
+                    if(tick_history_index > 18){
+                        tick_history_index = 0;
+                    }
+                    else{
+                        tick_history_index++;
+                    }
+
+                    int max = *std::max_element(tick_history, tick_history + 20);
+                    int min = *std::min_element(tick_history, tick_history + 20);
+                    delta = max-min;
+
+                }
+            }            
+            
+            int ssTick = _encoder->getPosition();
+            volatile int coast = ssTick - brakeTick;
+
+            // BREAKPOINT BELOW TO MONITOR COAST
+            volatile int test = 0;
+
+            // updating internal position to the goal position because we reached it
+            _position = goal_mm;
+
+            // Resetting internal position count so we dont creep up into our 2,147,483,647 limit on the variable
+            // We can only do this when the exact tick we move to is a whole number so we don't accrue any drift
+            if(goal_tick_precise == goal_tick * 1000){
+                resetEncoderPosition(_encoder->getPosition() - goal_tick);
+                setMmPosition(0);
+            }
+
+            return true;
+
+        }
+
+    }
+    // brake to kill any coast
+    halt();
 
     return false;
 }
