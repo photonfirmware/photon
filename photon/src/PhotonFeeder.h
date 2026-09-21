@@ -49,6 +49,8 @@ class PhotonFeeder {
         void setMmPosition(uint16_t position); 
         void resetEncoderPosition(uint16_t position);
         void resetTapeSettings();
+        bool getBeefyBoi();
+        void setBeefyBoi(bool value);
 
         // Blocking Functions
         void feedDistance(uint16_t tenths_mm, bool forward);
@@ -92,8 +94,11 @@ class PhotonFeeder {
 
         bool moveForward(uint16_t tenths_mm);
         bool moveBackward(uint16_t tenths_mm);
-        bool moveForwardSequence(uint16_t tenths_mm, bool first_attempt);
-        bool moveForwardSequenceFast(uint16_t tenths_mm, bool first_attempt);
+
+        bool moveForwardSequenceLT2(uint16_t tenths_mm, bool first_attempt);
+        bool moveForwardSequence2_4(uint16_t tenths_mm, bool first_attempt);
+        bool moveForwardSequenceGT4(uint16_t tenths_mm, bool first_attempt);
+
         bool moveBackwardSequence(bool forward, uint16_t tenths_mm);
 };
 
