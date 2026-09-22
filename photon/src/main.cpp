@@ -154,6 +154,25 @@ void topShortPress(){
   feeder->feedDistance(20, true);
 }
 
+void topDoublePress(){
+  if(feeder->getBeefyBoi()){
+    feeder->setBeefyBoi(false);
+    delay(100);
+    feeder->set_rgb(true, false, false);
+    delay(500);
+    feeder->set_rgb(false, false, false);
+  }
+  else{
+    feeder->setBeefyBoi(true);
+    delay(100);
+    feeder->set_rgb(false, true, false);
+    delay(500);
+    feeder->set_rgb(false, false, false);
+  }
+  
+  
+}
+
 void bottomShortPress(){
   //turn led white for movement
   feeder->set_rgb(true, true, true);
@@ -175,7 +194,7 @@ void topLongPress(){
   }
   else{
     //resetting first feed, since we could now have a new tape type
-    feeder->_first_feed_since_load = true;
+    feeder->resetTapeSettings();
     feeder->drive(true);
   }
       // set flag for concurrency to know driving state
@@ -190,7 +209,7 @@ void bottomLongPress(){
   }
   else{
     //resetting first feed, since we could now have a new tape type
-    feeder->_first_feed_since_load = true;
+    feeder->resetTapeSettings();
     feeder->drive(false);
   }
     // set flag for concurrency to know driving state
@@ -263,11 +282,53 @@ inline void checkButtons() {
         bottomShortPress();
       }
     }
+
     // Checking top button
     if(!digitalRead(SW2)){
-      delay(LONG_PRESS_DELAY);
-      // if top long press
-      if(!digitalRead(SW2)){
+
+      uint32_t topButtTimer = millis();
+
+      // debounce
+      delay(30);
+
+      // we hold while top button is pressed and we're under long press delay
+      while(!digitalRead(SW2) && (topButtTimer + LONG_PRESS_DELAY) > millis()){
+        //do nothing while waiting for exit condition
+      }
+
+      // measure how long we pressed the first button
+      int current = millis();
+      int elapsed = current - topButtTimer;
+
+      delay(30);
+
+      //if loop exits from button release, we wait to see if it's clicked again for double click or single click
+      if(elapsed < LONG_PRESS_DELAY){
+        //reset timer to check for second click
+        uint32_t secondPressTimer = millis();
+
+        // check to see within the double click delay if we had a second click
+        while(secondPressTimer + DOUBLE_PRESS_DELAY > millis()){
+          if(!digitalRead(SW2)){
+
+            while(!digitalRead(SW1) || !digitalRead(SW2)){
+              //do nothing while a button is being pressed
+            }
+            topDoublePress();
+            while(!digitalRead(SW1) || !digitalRead(SW2)){
+              //do nothing while a button is being pressed
+            }
+            return;
+          }
+        }
+        
+        // if we timeout, it was a short press
+        topShortPress();
+      }
+
+      // if loop exits from timeout, we check to see if the bottom button is 
+      // pressed to decide if it's a drive forward or mode switch
+      else{
         // if both long press
         if(!digitalRead(SW1)){
           bothLongPress();
@@ -276,10 +337,6 @@ inline void checkButtons() {
         else{
           topLongPress();
         }
-      }
-      // if top short press
-      else{
-        topShortPress();
       }
     }
   }
@@ -291,7 +348,7 @@ inline void checkButtons() {
       feeder->resetEncoderPosition(0);
       feeder->setMmPosition(0);
       driving = false;
-      delay(5);
+      delay(50);
     }
   }
 }
@@ -305,21 +362,5 @@ inline void checkForRS485Packet() {
 //------
 void loop() {
   checkButtons();
-  // if(!digitalRead(SW1) && digitalRead(SW2)){
-  //   feeder->set_rgb(true, false, false);
-  // }
-  // else if(digitalRead(SW1) && !digitalRead(SW2)){
-  //   feeder->set_rgb(false, true, false);
-  // }
-
-  // else if(!digitalRead(SW1) && !digitalRead(SW2)){
-  //   feeder->set_rgb(true, true, false);
-  // }
-  // else{
-  //   feeder->set_rgb(false, false, false);
-  // }
-
-
-
   checkForRS485Packet();
 }
