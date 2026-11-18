@@ -7,22 +7,22 @@
 // --------------------
 
 // Calculating Ticks per Tenth MM
-//
-// The "1:1030" gearbox is actually 1:1030.4 or 5:5152
-// Found by counting the actual teeth of the gears:
-// Ratio 1:  1:20
-// Ratio 2: 10:33
-// Ratio 3: 11:32
-// Ratio 4:  9:23
-// Ratio 5: 10:21
-//
-// Encoder has 14 ticks per revolution (7 per channel)
-// One full rotation of the output shaft is therefore 14*1030.4 = 14,425.6 ticks
-// divided by 32 teeth is 450.8 ticks per tooth
-// divided by 40 tenths of a mm per tooth (4mm) is 11.27 ticks per tenth mm
-// ~8.873 microns per tick
 
-#define TICKS_PER_TENTH_MM 11.27
+// Gear Interfaces
+// 1:21
+// 9:26
+// 11:24
+// 10:24
+// 8:26
+
+// Gearbox has ratio of 1:1032.43636363636..
+// Encoder has 14 ticks per revolution (7 per channel)
+// one full rotation of the output shaft is 14*1032.43636... = 14454.109090909.. ticks per output revolution
+// Divided by 32 teeth is 451.6909090909.. ticks per tooth
+// Divided by 40 tenths of a mm per tooth (4mm) is 11.292272727.. ticks per tenth mm
+
+#define TICKS_PER_TENTH_MM 11.292
+
 #define THOUSANDTHS_TICKS_PER_TENTH_MM ((uint32_t)(TICKS_PER_TENTH_MM * 1000))
 #define TENTH_MM_PER_PIP 40
 
@@ -31,7 +31,7 @@
 // -----------
 
 // number of ticks within requested tick position we should begin halting
-#define DRIVE_APPROACH_FINAL_TICKS 150
+#define DRIVE_APPROACH_FINAL_TICKS 300
 // when moving backwards, how far further backwards past requested position to approach from the back
 #define BACKLASH_COMP_TENTH_MM 10
 
@@ -40,7 +40,7 @@
 // --------
 
 // how long the peel motor will peel film per tenth mm of tape requested to be driven
-#define PEEL_TIME_PER_TENTH_MM 22
+#define PEEL_TIME_PER_TENTH_MM 30
 // how long the peel motor will peel film during backwards movements per tenth mm of tape requested to be driven
 #define BACKWARDS_PEEL_TIME_PER_TENTH_MM 30
 // short amount of time peel motor moves backwards to reduce tension on film after peeling
@@ -109,7 +109,6 @@ uint16_t PhotonFeeder::calculateExpectedFeedTime(uint8_t distance, bool forward)
         // - peel forward time
         // - peel backoff time
         // - expected time to drive forward assuming one attempt
-        
         return (distance * PEEL_TIME_PER_TENTH_MM) + (2 * PEEL_BACKOFF_TIME) + (distance * TIMEOUT_TIME_PER_TENTH_MM) + 1000;
 
     }
@@ -189,14 +188,6 @@ void PhotonFeeder::vendorSpecific(uint8_t options[VENDOR_SPECIFIC_OPTIONS_LENGTH
     
 }
 
-bool PhotonFeeder::getBeefyBoi(){
-    return _beefy_boi;
-}
-
-void PhotonFeeder::setBeefyBoi(bool value){
-    _beefy_boi = value;
-}
-
 void PhotonFeeder::resetTapeSettings() {
     _beefy_boi = false;
     _first_feed_since_load = true;
@@ -256,6 +247,14 @@ bool PhotonFeeder::checkLoaded() {
 
     return true;
 
+}
+
+bool PhotonFeeder::getBeefyBoi(){
+    return _beefy_boi;
+}
+
+void PhotonFeeder::setBeefyBoi(bool value){
+    _beefy_boi = value;
 }
 
 void PhotonFeeder::resetEncoderPosition(uint16_t position){
@@ -404,7 +403,7 @@ void PhotonFeeder::halt(){
 void PhotonFeeder::feedDistance(uint16_t tenths_mm, bool forward) {
 
     if (_first_feed_since_load){
-        // checkLoaded();
+        //checkLoaded();
         _first_feed_since_load = false;
     }
 
@@ -1105,6 +1104,7 @@ bool PhotonFeeder::moveForwardSequence2_4(uint16_t tenths_mm, bool first_attempt
 
     return false;
 }
+
 
 
 

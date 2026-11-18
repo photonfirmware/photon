@@ -274,7 +274,9 @@ void PhotonFeederProtocol::handleIdentifyFeeder() {
 }
 
 void PhotonFeederProtocol::handleProgramFeederFloor() {
+
     bool requestedUUIDMatchesMine = memcmp(command.initializeFeeder.uuid, _uuid, UUID_LENGTH) == 0;
+    
     if (! requestedUUIDMatchesMine) {
         return;
     }

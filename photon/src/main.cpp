@@ -46,8 +46,8 @@ MPL v2
 #ifdef UNIT_TEST
 StreamFake ser();
 #else
-HardwareSerial ser(PA10, PA9);
-#endif // UNIT_TEST
+HardwareSerial ser(PA3, PA2);
+#endif // ARDUINO
 
 // EEPROM
 OneWire oneWire(ONE_WIRE);
@@ -102,6 +102,8 @@ void setup() {
   network = new PhotonNetworkLayer(&bus, &packetizer, &addressFilter, &feederFloor);
   protocol = new PhotonFeederProtocol(feeder, &feederFloor, network, UniqueID, UniqueIDsize);
 
+  delay(200);
+  
   byte addr = feederFloor.read_floor_address();
 
   if(addr == 0xFF){ // not detected, turn red
